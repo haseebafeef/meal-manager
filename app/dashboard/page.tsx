@@ -44,33 +44,27 @@ export default async function Dashboard() {
 
     console.time('dashboard-data-fetch');
 
-    // 1. Users List
+    // Parallel Data Fetching
+    console.time('dashboard-parallel-fetch');
+    const [summary, userSummary, pendingRequestsCount, mealStats] = await Promise.all([
+        getSystemSummary(),
+        getUserSummary(currentUser.id),
+        prisma.transaction.count({
+            where: {
+                approverId: currentUser.id,
+                status: 'PENDING'
+            }
+        }),
+        getDailyMealStats()
+    ]);
+    console.timeEnd('dashboard-parallel-fetch');
+
+    // 1. Users List (Background / Non-blocking for summary but needed for UI? Actually used in Admin Form below)
+    // We can include this in the Promise.all or leave separate if not critical path for top fold.
+    // Ideally put it in the Promise.all too.
     const users = await prisma.user.findMany({
         select: { id: true, name: true, email: true }
     });
-
-    // 2. System Summary
-    console.time('getSystemSummary');
-    const summary = await getSystemSummary();
-    console.timeEnd('getSystemSummary');
-
-    // 3. User Summary
-    console.time('getUserSummary');
-    const userSummary = await getUserSummary(currentUser.id);
-    console.timeEnd('getUserSummary');
-
-    // 4. Pending Requests
-    const pendingRequestsCount = await prisma.transaction.count({
-        where: {
-            approverId: currentUser.id,
-            status: 'PENDING'
-        }
-    });
-
-    // 5. Daily Meal Stats
-    console.time('getDailyMealStats');
-    const mealStats = await getDailyMealStats();
-    console.timeEnd('getDailyMealStats');
 
     console.timeEnd('dashboard-data-fetch');
 

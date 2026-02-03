@@ -210,37 +210,36 @@ export async function getSystemSummary() {
     const queryStart = new Date(dhakaStart.getTime() - 6 * 60 * 60 * 1000);
 
     // 1. Current Month Expenses
-    const currentMonthExpenses = await prisma.expense.aggregate({
-        where: {
-            date: { gte: queryStart }
-        },
-        _sum: { amount: true }
-    });
+    // Parallelize Aggregations
+    const [currentMonthExpenses, currentMonthCreditData, prevExpenses, prevCredit] = await prisma.$transaction([
+        prisma.expense.aggregate({
+            where: {
+                date: { gte: queryStart }
+            },
+            _sum: { amount: true }
+        }),
+        prisma.transaction.aggregate({
+            where: {
+                createdAt: { gte: queryStart },
+                status: 'APPROVED'
+            },
+            _sum: { amount: true }
+        }),
+        prisma.expense.aggregate({
+            where: { date: { lt: queryStart } },
+            _sum: { amount: true }
+        }),
+        prisma.transaction.aggregate({
+            where: {
+                createdAt: { lt: queryStart },
+                status: 'APPROVED'
+            },
+            _sum: { amount: true }
+        })
+    ]);
+
     const totalExpensesCurrent = currentMonthExpenses._sum.amount || 0;
-
-    // 2. Current Month Credit
-    const currentMonthCredit = await prisma.transaction.aggregate({
-        where: {
-            createdAt: { gte: queryStart },
-            status: 'APPROVED'
-        },
-        _sum: { amount: true }
-    });
-    const totalCreditCurrent = currentMonthCredit._sum.amount || 0;
-
-    // 3. Previous Month Remaining
-    const prevExpenses = await prisma.expense.aggregate({
-        where: { date: { lt: queryStart } },
-        _sum: { amount: true }
-    });
-    const prevCredit = await prisma.transaction.aggregate({
-        where: {
-            createdAt: { lt: queryStart },
-            status: 'APPROVED'
-        },
-        _sum: { amount: true }
-    });
-
+    const totalCreditCurrent = currentMonthCreditData._sum.amount || 0;
     const prevBalance = (prevCredit._sum.amount || 0) - (prevExpenses._sum.amount || 0);
 
     const remainingFund = prevBalance + totalCreditCurrent - totalExpensesCurrent;
