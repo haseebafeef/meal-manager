@@ -1,10 +1,10 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/app/lib/prisma';
 import { auth } from '@/auth';
 import clsx from 'clsx';
 // import { format } from 'date-fns'; 
 import { approveRequest, declineRequest } from '@/app/lib/transaction-actions'; // New actions we need to create
 
-const prisma = new PrismaClient();
+
 
 export default async function TransactionsList() {
     const session = await auth();

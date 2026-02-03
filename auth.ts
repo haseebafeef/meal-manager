@@ -13,12 +13,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     session: { strategy: 'jwt' },
     callbacks: {
         async jwt({ token, user }) {
+            console.log('JWT Callback:', { token, user });
             if (user) {
                 token.id = user.id;
             }
             return token;
         },
         async session({ session, token }) {
+            console.log('Session Callback:', { session, token });
             if (token?.id) {
                 // @ts-expect-error: session.user type is extended in next-auth.d.ts but TS doesn't see it here
                 session.user.id = token.id;
@@ -40,6 +42,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
                 if (parsedCredentials.success) {
                     const { identifier, password } = parsedCredentials.data;
+                    console.log('Authorize: Checking user', identifier);
                     const user = await prisma.user.findFirst({
                         where: {
                             OR: [
@@ -49,20 +52,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                         }
                     });
 
-                    if (!user || !user.password) return null;
+                    if (!user || !user.password) {
+                        console.log('Authorize: User not found or no password');
+                        return null;
+                    }
                     const passwordsMatch = await bcrypt.compare(password, user.password);
 
                     if (passwordsMatch) {
                         // Status Check
                         if (user.status !== 'Active') {
-                            console.log('User is inactive');
+                            console.log('Authorize: User is inactive');
                             return null;
                         }
+                        console.log('Authorize: Success', user.id);
                         return user;
                     }
+                    console.log('Authorize: Password mismatch');
                 }
 
-                console.log('Invalid credentials');
+                console.log('Invalid credentials schema');
                 return null;
             },
         }),

@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { format } from 'date-fns';
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/app/lib/prisma';
 import { ThemeToggle } from '@/app/ui/theme-toggle';
 import UserDropdown from '@/app/ui/user-dropdown';
 import Link from 'next/link';
@@ -15,7 +15,7 @@ import {
     PhotoIcon
 } from '@heroicons/react/24/outline';
 
-const prisma = new PrismaClient();
+
 
 export default async function ExpensesPage(props: {
     searchParams?: Promise<{

@@ -52,6 +52,7 @@ export async function signup(prevState: { message: string } | undefined, formDat
         const loginData = new FormData();
         loginData.append('identifier', email || phone);
         loginData.append('password', password);
+        loginData.append('redirectTo', '/dashboard'); // FORCE redirect
 
         await signIn('credentials', loginData);
     } catch (error) {
@@ -67,6 +68,10 @@ export async function authenticate(
     formData: FormData,
 ) {
     try {
+        // Append explicit redirect
+        if (!formData.has('redirectTo')) {
+            formData.append('redirectTo', '/dashboard');
+        }
         await signIn('credentials', formData);
     } catch (error) {
         if (error instanceof AuthError) {

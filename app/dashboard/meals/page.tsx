@@ -4,14 +4,14 @@ import MealCalendar from '@/app/ui/meal-calendar';
 import { getMealStatus } from '@/app/lib/meal-actions';
 import { ThemeToggle } from '@/app/ui/theme-toggle';
 
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/app/lib/prisma';
 import UserDropdown from '@/app/ui/user-dropdown';
 import Link from 'next/link';
 
 import { getSystemSettings } from '@/app/lib/settings-actions';
 import { SETTINGS_KEYS } from '@/app/lib/constants';
 
-const prisma = new PrismaClient();
+
 
 function formatTime(timeStr: string) {
     if (!timeStr) return '';

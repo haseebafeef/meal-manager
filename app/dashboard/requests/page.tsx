@@ -1,5 +1,5 @@
 import { auth } from '@/auth';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/app/lib/prisma';
 import { redirect } from 'next/navigation';
 import { approveRequest, declineRequest } from '@/app/lib/transaction-actions';
 
@@ -7,7 +7,7 @@ import { ThemeToggle } from '@/app/ui/theme-toggle';
 import UserDropdown from '@/app/ui/user-dropdown';
 import Link from 'next/link';
 
-const prisma = new PrismaClient();
+
 
 export default async function RequestsPage() {
     const session = await auth();

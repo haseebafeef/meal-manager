@@ -556,7 +556,8 @@ export async function getUserSummary(userId: string) {
     const prevMonthBalance = depositsBeforeThisMonth - (snapshotsCost + prevMonthDynamicCost);
 
     // Auto-sync status based on new balance
-    await syncUserStatus(userId);
+    // REMOVED RECURSIVE CALL: await syncUserStatus(userId); 
+    // This was causing infinite loop: getUserSummary -> syncUserStatus -> getUserSummary...
 
     return {
         previousMonthBalance: prevMonthBalance,

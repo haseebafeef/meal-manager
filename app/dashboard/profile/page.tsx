@@ -3,12 +3,12 @@ import { ThemeToggle } from '@/app/ui/theme-toggle';
 import UserDropdown from '@/app/ui/user-dropdown';
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/app/lib/prisma';
 import ProfileForm from '@/app/ui/profile-form';
 import SecurityForm from '@/app/ui/security-form';
 import ConnectedAccounts from '@/app/ui/connected-accounts';
 
-const prisma = new PrismaClient();
+
 
 export default async function ProfilePage() {
     const session = await auth();

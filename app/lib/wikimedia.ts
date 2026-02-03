@@ -19,7 +19,13 @@ const FALLBACK_BG: BackgroundImage = {
 };
 
 export async function fetchRandomBackgroundAction(): Promise<BackgroundImage> {
+    // TEMPORARY: Return fallback immediately to avoid 429 errors during dev/debugging
+    // return FALLBACK_BG; 
+
     try {
+        // Double check avoiding API spam if revalidating too fast
+        return FALLBACK_BG; // Force fallback for now
+
         const categories = [
             "Category:Quality images from Wiki Loves Bangla 2024",
             "Category:Featured pictures of Christmas food",

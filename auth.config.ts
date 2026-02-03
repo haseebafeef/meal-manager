@@ -1,5 +1,5 @@
 import type { NextAuthConfig } from 'next-auth';
- 
+
 export const authConfig = {
   pages: {
     signIn: '/login',
@@ -7,6 +7,7 @@ export const authConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
+      console.log('Middleware Auth Check:', { isLoggedIn, path: nextUrl.pathname });
       const isOnDashboard = nextUrl.pathname.startsWith('/dashboard');
       if (isOnDashboard) {
         if (isLoggedIn) return true;
@@ -14,7 +15,7 @@ export const authConfig = {
       } else if (isLoggedIn) {
         // Redirect authenticated users to dashboard if they visit login/signup
         if (nextUrl.pathname === '/login' || nextUrl.pathname === '/signup') {
-             return Response.redirect(new URL('/dashboard', nextUrl));
+          return Response.redirect(new URL('/dashboard', nextUrl));
         }
       }
       return true;

@@ -8,14 +8,16 @@ import ExpenseList from '@/app/ui/expense-list';
 import { getSystemSummary, getUserSummary } from '@/app/lib/expense-actions';
 import { getDailyMealStats } from '@/app/lib/meal-actions';
 
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/app/lib/prisma';
 import { ThemeToggle } from '@/app/ui/theme-toggle';
 import UserDropdown from '@/app/ui/user-dropdown';
 
-const prisma = new PrismaClient();
+// Removed local instantiation
+// const prisma = new PrismaClient();
 
 export default async function Dashboard() {
     const session = await auth();
+    console.log('Dashboard Page Session:', session);
 
     if (!session?.user?.email) {
         redirect('/login');
@@ -33,17 +35,31 @@ export default async function Dashboard() {
         currentUser = await prisma.user.findFirst({ where: { email: userEmail } });
     }
 
+    console.log('Dashboard User Lookup:', { userId, userEmail, found: !!currentUser });
+
     if (!currentUser) {
+        console.log('Dashboard: User not found in DB, redirecting to login');
         redirect('/login');
     }
 
+    console.time('dashboard-data-fetch');
+
+    // 1. Users List
     const users = await prisma.user.findMany({
         select: { id: true, name: true, email: true }
     });
 
+    // 2. System Summary
+    console.time('getSystemSummary');
     const summary = await getSystemSummary();
-    const userSummary = await getUserSummary(currentUser.id);
+    console.timeEnd('getSystemSummary');
 
+    // 3. User Summary
+    console.time('getUserSummary');
+    const userSummary = await getUserSummary(currentUser.id);
+    console.timeEnd('getUserSummary');
+
+    // 4. Pending Requests
     const pendingRequestsCount = await prisma.transaction.count({
         where: {
             approverId: currentUser.id,
@@ -51,7 +67,12 @@ export default async function Dashboard() {
         }
     });
 
+    // 5. Daily Meal Stats
+    console.time('getDailyMealStats');
     const mealStats = await getDailyMealStats();
+    console.timeEnd('getDailyMealStats');
+
+    console.timeEnd('dashboard-data-fetch');
 
     return (
         <main className="text-gray-900 dark:text-gray-100 p-4 md:p-6 pb-64 transition-colors duration-300 pointer-events-none">
