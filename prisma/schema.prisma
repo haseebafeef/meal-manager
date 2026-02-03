@@ -20,6 +20,8 @@ model User {
   status        String      @default("Active") // Active, Inactive, Deleted
   isAdmin       Boolean     @default(false)    // Admin privilege
   nickname      String?     // Optional display name
+  defaultLunchStatus  Boolean @default(false)  // Default Lunch (OFF)
+  defaultDinnerStatus Boolean @default(false)  // Default Dinner (OFF)
 
   statusLogs    UserStatusLog[]
 

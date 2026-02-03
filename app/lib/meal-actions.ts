@@ -6,6 +6,7 @@ import { startOfMonth, endOfMonth, addMonths, endOfDay, subDays } from 'date-fns
 import { getNowDhaka, formatUserName } from '@/app/lib/utils';
 import { getSystemSettings } from '@/app/lib/settings-actions';
 import { SETTINGS_KEYS } from '@/app/lib/constants';
+import { syncUserStatus } from '@/app/lib/expense-actions';
 
 import { prisma } from '@/app/lib/prisma';
 
@@ -81,11 +82,11 @@ export async function updateMealCount(dateStr: string, type: 'lunch' | 'dinner',
     const targetDate = new Date(Date.UTC(y, m - 1, d)); // UTC Midnight
 
     const now = new Date();
-    // Determine today's date in the Dhaka timezone for strict rule enforcement.
+    // Determine today's date in the local timezone for strict rule enforcement.
     const dhakaTimeStr = now.toLocaleString("en-US", { timeZone: "Asia/Dhaka" });
     const dhakaDate = new Date(dhakaTimeStr);
 
-    // Represent the start of the current Dhaka day as a UTC midnight Date object for database matching.
+    // Represent the start of the current local day as a UTC midnight Date object for database matching.
     const dhakaTodayMidnight = new Date(Date.UTC(dhakaDate.getFullYear(), dhakaDate.getMonth(), dhakaDate.getDate()));
 
     const isByAdmin = !!targetUserId;
@@ -137,13 +138,13 @@ export async function updateMealCount(dateStr: string, type: 'lunch' | 'dinner',
             const minutesNow = currentHour * 60 + currentMinute;
 
             if (type === 'lunch') {
-                // Dynamic Cutoff
+                // Dynamic Cutoff Check
                 if (minutesNow >= lunchCutoffMins) {
                     const limitTime12 = new Date(0, 0, 0, lH, lM).toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
                     return { error: `Lunch cutoff time (${limitTime12}) passed.` };
                 }
             } else {
-                // Dynamic Cutoff
+                // Dynamic Cutoff Check
                 if (minutesNow >= dinnerCutoffMins) {
                     const limitTime12 = new Date(0, 0, 0, dH, dM).toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
                     return { error: `Dinner cutoff time (${limitTime12}) passed.` };
@@ -178,23 +179,39 @@ export async function updateMealCount(dateStr: string, type: 'lunch' | 'dinner',
                 data: { [type]: newCount }
             });
         } else {
+            // Fetch user preference for defaults
+            const userPref = await prisma.user.findUnique({
+                where: { id: userId },
+                select: { defaultLunchStatus: true, defaultDinnerStatus: true }
+            });
+
+            // Standard defaults for the OTHER type
+            const defaultLunch = userPref?.defaultLunchStatus ? 1 : 0;
+            const defaultDinner = userPref?.defaultDinnerStatus ? 1 : 0;
+
             await prisma.mealStatus.create({
                 data: {
                     userId: userId,
                     date: dbDate,
-                    lunch: type === 'lunch' ? newCount : 1, // Default the OTHER to 1 (Standard)
-                    dinner: type === 'dinner' ? newCount : 1, // Default the OTHER to 1 (Standard)
+                    lunch: type === 'lunch' ? newCount : defaultLunch,
+                    dinner: type === 'dinner' ? newCount : defaultDinner,
                 }
             });
         }
 
-        // Revalidate specific path if admin, or generic if user
-        if (isByAdmin) {
-            revalidatePath(`/dashboard/admin/meals/${userId}`);
-        } else {
-            revalidatePath('/dashboard/meals');
-            revalidatePath('/dashboard/meals/history');
-        }
+        // Revalidate ALL paths to ensure synchronization
+        // 1. Revalidate the user's own dashboard
+        revalidatePath('/dashboard/meals');
+        revalidatePath('/dashboard/meals/history');
+
+        // 2. Revalidate the specific admin view for this user
+        revalidatePath(`/dashboard/admin/meals/${userId}`);
+
+        // 3. Revalidate the main admin meals list (if applicable)
+        revalidatePath('/dashboard/admin/users');
+
+        // Check Account Status (Auto-off)
+        await syncUserStatus(userId);
 
         return { success: true };
     } catch (error) {
@@ -204,19 +221,72 @@ export async function updateMealCount(dateStr: string, type: 'lunch' | 'dinner',
 
 }
 
+export async function updateDefaultMealPreference(type: 'lunch' | 'dinner', isEnabled: boolean, targetUserId?: string) {
+    const session = await auth();
+    if (!session?.user?.email) return { error: "Not authenticated" };
+
+    try {
+        let emailToUpdate = session.user.email;
+
+        // Admin Override Logic
+        if (targetUserId) {
+            const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
+            if (!currentUser?.isAdmin) {
+                return { error: "Unauthorized: Admin access required" };
+            }
+            const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } });
+            if (!targetUser) return { error: "Target user not found" };
+            emailToUpdate = targetUser.email!; // Assumes email exists, or use ID update
+
+            // Safer to update by ID for target
+            const field = type === 'lunch' ? 'defaultLunchStatus' : 'defaultDinnerStatus';
+            await prisma.user.update({
+                where: { id: targetUserId },
+                data: { [field]: isEnabled }
+            });
+            revalidatePath(`/dashboard/admin/meals/${targetUserId}`);
+            revalidatePath('/dashboard/meals');
+            return { success: true };
+        }
+
+        const field = type === 'lunch' ? 'defaultLunchStatus' : 'defaultDinnerStatus';
+        await prisma.user.update({
+            where: { email: emailToUpdate },
+            data: { [field]: isEnabled }
+        });
+        revalidatePath('/dashboard/meals');
+        // Also revalidate admin view for this user
+        // We need the ID for that path.
+        const user = await prisma.user.findUnique({ where: { email: emailToUpdate }, select: { id: true } });
+        if (user) {
+            revalidatePath(`/dashboard/admin/meals/${user.id}`);
+        }
+        return { success: true };
+    } catch (error) {
+        console.error(`Failed to update default ${type} status:`, error);
+        return { error: "Failed to update setting" };
+    }
+}
 
 
 export async function getDailyMealStats() {
     const now = new Date();
-    // Dhaka Time logic for "Today"
+    // Local Time logic for "Today"
     const dhakaTimeStr = now.toLocaleString("en-US", { timeZone: "Asia/Dhaka" });
     const dhakaDate = new Date(dhakaTimeStr);
 
-    // Dhaka Today Midnight (in UTC representation for DB)
+    // Local Today Midnight (in UTC representation for DB)
     const targetDate = new Date(Date.UTC(dhakaDate.getFullYear(), dhakaDate.getMonth(), dhakaDate.getDate()));
 
     const allUsers = await prisma.user.findMany({
-        select: { id: true, name: true, nickname: true, status: true }
+        select: {
+            id: true,
+            name: true,
+            nickname: true,
+            status: true,
+            defaultLunchStatus: true,
+            defaultDinnerStatus: true
+        }
     });
 
     const meals = await prisma.mealStatus.findMany({
@@ -248,10 +318,12 @@ export async function getDailyMealStats() {
 
         const displayName = formatUserName(user);
 
-        // Default Logic: If no record, assume 1 (Meal ON) IF active. 
-        // If inactive/deleted, we already returned above unless status exists.
-        const lunchCount = status ? status.lunch : 1;
-        const dinnerCount = status ? status.dinner : 1;
+        // Default Logic: If no record, use User Preference
+        const defaultLunch = user.defaultLunchStatus ? 1 : 0;
+        const defaultDinner = user.defaultDinnerStatus ? 1 : 0;
+
+        const lunchCount = status ? status.lunch : defaultLunch;
+        const dinnerCount = status ? status.dinner : defaultDinner;
 
         if (lunchCount > 0) {
             stats.lunch.count += lunchCount;
@@ -283,7 +355,9 @@ export async function getMonthlyMealHistory(year: number, month: number) {
             statusLogs: {
                 orderBy: { changedAt: 'asc' }
             },
-            createdAt: true
+            createdAt: true,
+            defaultLunchStatus: true,
+            defaultDinnerStatus: true
         }
     });
 
@@ -374,8 +448,19 @@ export async function getMonthlyMealHistory(year: number, month: number) {
             dailyTotalUsers++;
             const displayName = formatUserName(user);
 
-            const lVal = status ? status.lunch : 1;
-            const dVal = status ? status.dinner : 1;
+            // Default Logic: 
+            // - PAST: Default to 1 (Legacy behavior assumption)
+            // - TODAY/FUTURE: Use User Preference
+            let defaultLunch = 1;
+            let defaultDinner = 1;
+
+            if (dayState !== 'PAST') {
+                defaultLunch = user.defaultLunchStatus ? 1 : 0;
+                defaultDinner = user.defaultDinnerStatus ? 1 : 0;
+            }
+
+            const lVal = status ? status.lunch : defaultLunch;
+            const dVal = status ? status.dinner : defaultDinner;
 
             if (lVal > 0) {
                 lunchCount += lVal;

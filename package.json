@@ -19,6 +19,7 @@
     "@auth/prisma-adapter": "^2.11.1",
     "@capacitor/android": "^8.0.2",
     "@capacitor/core": "^8.0.2",
+    "@headlessui/react": "^2.2.9",
     "@heroicons/react": "^2.2.0",
     "@prisma/client": "^5.10.2",
     "@types/nodemailer": "^7.0.9",

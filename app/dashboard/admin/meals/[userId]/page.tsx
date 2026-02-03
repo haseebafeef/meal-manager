@@ -6,6 +6,9 @@ import { ThemeToggle } from '@/app/ui/theme-toggle';
 
 
 import { prisma } from '@/app/lib/prisma';
+import DefaultMealToggle from '@/app/ui/default-meal-toggle';
+
+export const dynamic = 'force-dynamic';
 
 export default async function AdminManageUserMealsPage({ params }: { params: Promise<{ userId: string }> }) {
     const session = await auth();
@@ -25,7 +28,12 @@ export default async function AdminManageUserMealsPage({ params }: { params: Pro
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <div>
                     <h1 className="text-2xl font-bold">Manage Meals: <span className="text-blue-600 dark:text-blue-400">{targetUser.name}</span></h1>
-                    <p className="text-sm text-gray-500">Admin Mode: Cutoff times do not apply.</p>
+                    <p className="text-sm text-gray-500 mb-2">Admin Mode: Cutoff times do not apply.</p>
+                    <DefaultMealToggle
+                        initialLunch={targetUser.defaultLunchStatus}
+                        initialDinner={targetUser.defaultDinnerStatus}
+                        targetUserId={targetUser.id}
+                    />
                 </div>
                 <div className="flex gap-2">
                     <ThemeToggle />
@@ -34,7 +42,14 @@ export default async function AdminManageUserMealsPage({ params }: { params: Pro
             </div>
 
             <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm p-4 md:p-6 max-w-4xl mx-auto w-full border border-gray-100 dark:border-gray-700">
-                <MealCalendar initialStatuses={statuses} targetUserId={userId} adminOverride={true} />
+                <MealCalendar
+                    key={`${targetUser.defaultLunchStatus}-${targetUser.defaultDinnerStatus}`}
+                    initialStatuses={statuses}
+                    targetUserId={userId}
+                    adminOverride={true}
+                    defaultLunch={targetUser.defaultLunchStatus}
+                    defaultDinner={targetUser.defaultDinnerStatus}
+                />
             </div>
         </main>
     );

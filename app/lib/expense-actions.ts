@@ -204,8 +204,8 @@ export async function addBatchExpenses(prevState: any, formData: FormData) {
 
 export async function getSystemSummary() {
     // 1. Current Month Expenses
-    // Calculate the start of the current month in UTC, adjusted for the 6-hour Dhaka offset
-    // This allows accurate monthly data retrieval relative to local business hours.
+    // Calculate the start of the current month in UTC, adjusted for the local offset (UTC+6)
+    // to ensure accurate monthly data retrieval relative to local business hours.
     const dhakaStart = getStartOfMonthDhaka();
     const queryStart = new Date(dhakaStart.getTime() - 6 * 60 * 60 * 1000);
 
@@ -263,7 +263,7 @@ function parseTimeToMinutes(timeStr: string) {
 
 // Helper: Format Date to YYYY-MM
 function formatMonthKey(date: Date) {
-    const d = new Date(date.getTime() + 6 * 60 * 60 * 1000); // Shift to Dhaka for key generation
+    const d = new Date(date.getTime() + 6 * 60 * 60 * 1000); // Shift to local time for key generation
     return d.toISOString().slice(0, 7); // "YYYY-MM"
 }
 
@@ -316,7 +316,7 @@ export async function getUserSummary(userId: string) {
     const queryStartCurrentMonth = new Date(startOfCurrentMonthDhaka.getTime() - 6 * 60 * 60 * 1000); // Feb 1 00:00 Dhaka -> Jan 31 18:00 UTC
 
     // Calculate Start of Previous Month
-    // (Month index wrap handled by setMonth: Jan (0) - 1 -> Dec (-1))
+    // (Month index wrap is handled by JavaScript's setMonth)
     const startOfPrevMonthDhaka = new Date(startOfCurrentMonthDhaka);
     startOfPrevMonthDhaka.setMonth(startOfPrevMonthDhaka.getMonth() - 1);
     const queryStartPrevMonth = new Date(startOfPrevMonthDhaka.getTime() - 6 * 60 * 60 * 1000);
@@ -369,8 +369,7 @@ export async function getUserSummary(userId: string) {
 
     const mealMap = new Map();
     allMeals.forEach(m => {
-        // Normalizing key to "YYYY-MM-DD" in Dhaka/FaceValue terms is tricky with UTC dates.
-        // Let's stick to strict UTC strings if possible.
+        // Normalize key to "YYYY-MM-DD" based on strict UTC strings.
         // m.date is Midnight UTC.
         const key = m.date.toISOString().split('T')[0];
         mealMap.set(key, m);
@@ -438,6 +437,9 @@ export async function getUserSummary(userId: string) {
             if (!isActive) {
                 l = 0;
                 d = 0;
+            } else {
+                l = user?.defaultLunchStatus ? 1 : 0;
+                d = user?.defaultDinnerStatus ? 1 : 0;
             }
         }
 
@@ -463,18 +465,7 @@ export async function getUserSummary(userId: string) {
 
 
     // B. Previous Month / Gaps Logic
-    // We iterate `allMeals` to find records that fall outside standard buckets.
-    // This handles "Strictly Dynamic" prev month calculations (if not snapshotted).
-    // Note: We need to be careful not to double count if we iterated "Current Month" above.
-    // The previous loop covered exactly `cmStart` to `End of Month`.
-    // So we verify dates.
-
-    // Actually, `gapMealsMap` logic relied on `allMeals` iteration.
-    // If we stop iterating `allMeals` for current month, `gapMealsMap` logic changes.
-    // `gapMealsMap` was for "OLDER / LEGACY".
-    // "Older" means `date < queryStartCurrentMonth`.
-
-    // We can iterate `allMeals` just for "Older" items?
+    // Iterate through all meals to handle "Pre-Current Month" items or gaps.
     for (const m of allMeals) {
         if (m.date >= queryStartCurrentMonth) {
             // Handled by Loop A ??
@@ -505,9 +496,8 @@ export async function getUserSummary(userId: string) {
         }
     }
 
-    // Process Gaps (Auto-Finalize)
-    // Note: This is a "Mutation in a GET". Next.js Server Actions allow this, 
-    // but ideally fetching is pure. Given the requirement for "Auto-Close", we do it here lazily.
+    // Process Gaps: Auto-finalize months that weren't manually closed.
+    // Note: Performing this write-on-read ensures historical data is eventually consistent without a background job.
     for (const [key, data] of gapMealsMap.entries()) {
         const cost = data.count * prevRate; // Rule: Use PREVIOUS_MEAL_RATE for Auto-Close
 
@@ -542,14 +532,9 @@ export async function getUserSummary(userId: string) {
     const trueRemainingBalance = totalDeposits - totalCost;
 
     // Previous Month Balance (Opening Balance of This Month)
-    // = (Deposits - Current Credit) - (PastSnapshots + PrevDynamic)
-    // Wait. "Opening Balance of This Month" should include the cost of Previous Month?
-    // User said: "last updated previous moths remaining balance to current months 'remaing from prev month' field."
-    // Usually "Remaining from Prev" = Balance at end of Prev.
-    // So Yes, it should deduct Prev Month Costs.
+    // Formula: (Total Deposits - Current Credit) - (Historical Costs + Prev Month Dynamic Costs)
 
-    // Balance End of Prev = Total Deposits (up to end of prev) - Costs (up to end of prev).
-    // => Total Deposits (Total - CurrentCredit) - (Snapshots + PrevDynamic).
+
 
     const depositsBeforeThisMonth = totalDeposits - currentMonthCredit;
     const prevMonthBalance = depositsBeforeThisMonth - (snapshotsCost + prevMonthDynamicCost);

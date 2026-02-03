@@ -78,7 +78,7 @@ export default async function Dashboard() {
                         Welcome back, <span className="font-semibold text-gray-900 dark:text-white">{currentUser?.name}</span>
                     </p>
                     <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                        Your Balance: <span className="font-bold text-green-600 text-lg">৳{currentUser?.balance?.toFixed(2) ?? '0.00'}</span>
+                        Your Balance: <span className={`font-bold text-lg ${userSummary.remainingBalance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>৳{userSummary.remainingBalance.toFixed(2)}</span>
                     </p>
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">

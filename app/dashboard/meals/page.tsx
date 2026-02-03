@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import MealCalendar from '@/app/ui/meal-calendar';
 import { getMealStatus } from '@/app/lib/meal-actions';
 import { ThemeToggle } from '@/app/ui/theme-toggle';
+import DefaultMealToggle from '@/app/ui/default-meal-toggle';
 
 import { prisma } from '@/app/lib/prisma';
 import UserDropdown from '@/app/ui/user-dropdown';
@@ -47,10 +48,19 @@ export default async function MealsPage() {
             </div>
 
             <div className="mb-6 p-4 rounded-lg bg-white dark:bg-zinc-800 border border-gray-100 dark:border-gray-700 shadow-sm text-sm text-gray-600 dark:text-gray-400">
-                <p className="mb-2">
-                    Manage your daily meals. By default, all meals are <span className="font-bold text-green-600 dark:text-green-400">ON</span>.
-                    Click to turn them OFF.
-                </p>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+                    <div>
+                        <p className="mb-1">
+                            Manage your daily meals. By default, meals are set to your preference.
+                        </p>
+                    </div>
+                    {/* Toggle */}
+                    <DefaultMealToggle
+                        initialLunch={currentUser.defaultLunchStatus}
+                        initialDinner={currentUser.defaultDinnerStatus}
+                    />
+                </div>
+
                 <p className="mb-2">
                     <span className="font-semibold text-gray-700 dark:text-gray-300">Guest Meals:</span> To add guest meals, click the
                     <span className="inline-block mx-1 align-middle"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-indigo-500"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg></span>
@@ -63,7 +73,11 @@ export default async function MealsPage() {
             </div>
 
             <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm p-4 md:p-6 max-w-4xl mx-auto w-full border border-gray-100 dark:border-gray-700">
-                <MealCalendar initialStatuses={statuses} />
+                <MealCalendar
+                    initialStatuses={statuses}
+                    defaultLunch={currentUser.defaultLunchStatus}
+                    defaultDinner={currentUser.defaultDinnerStatus}
+                />
             </div>
         </main>
     );

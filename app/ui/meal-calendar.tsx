@@ -13,7 +13,7 @@ type MealStatus = {
     dinner: number;
 };
 
-export default function MealCalendar({ initialStatuses, targetUserId, adminOverride = false }: { initialStatuses: MealStatus[], targetUserId?: string, adminOverride?: boolean }) {
+export default function MealCalendar({ initialStatuses, targetUserId, adminOverride = false, defaultLunch = false, defaultDinner = false }: { initialStatuses: MealStatus[], targetUserId?: string, adminOverride?: boolean, defaultLunch?: boolean, defaultDinner?: boolean }) {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const router = useRouter();
 
@@ -73,6 +73,9 @@ export default function MealCalendar({ initialStatuses, targetUserId, adminOverr
         }
     };
 
+    const defaultLunchVal = defaultLunch ? 1 : 0;
+    const defaultDinnerVal = defaultDinner ? 1 : 0;
+
     return (
         <div>
             <div className="flex items-center justify-between mb-4">
@@ -121,12 +124,22 @@ export default function MealCalendar({ initialStatuses, targetUserId, adminOverr
                     <div className="grid grid-cols-7 gap-1">
                         {days.map((day) => {
                             const dateKey = day.toDateString();
-                            // Default is ON (1) if no record exists
-                            const status = statusMap.get(dateKey) || { lunch: 1, dinner: 1 };
 
                             // Client-side visual disable check (matches server logic loosely)
                             const now = new Date();
                             const isPast = isBefore(startOfDay(day), startOfDay(now));
+
+                            // Default Logic:
+                            // - If record exists: use it.
+                            // - If no record:
+                            //   - PAST: Default to 1 (Legacy ON)
+                            //   - FUTURE/TODAY: Use prop value (defaultLunchVal, defaultDinnerVal)
+                            let fallback = { lunch: 1, dinner: 1 };
+                            if (!isPast) {
+                                fallback = { lunch: defaultLunchVal, dinner: defaultDinnerVal };
+                            }
+
+                            const status = statusMap.get(dateKey) || fallback;
                             const futureLimit = endOfMonth(addMonths(now, 2));
                             const isFutureLocked = isAfter(day, futureLimit);
 
