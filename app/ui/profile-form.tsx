@@ -13,6 +13,8 @@ import Image from 'next/image';
 export default function ProfileForm({ user }: { user: User }) {
     const [state, dispatch] = useActionState(updateProfile, { message: '' });
     const [success, setSuccess] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (state.message === 'Profile Updated Successfully!') {
@@ -30,13 +32,41 @@ export default function ProfileForm({ user }: { user: User }) {
         }
     }, [state.message]);
 
+    // Handle Image Selection & Preview
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Size Validation (Limit to 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            setError("Image size too large. Please choose an image under 5MB.");
+            return;
+        }
+        setError(null);
+
+        // Create Preview
+        const url = URL.createObjectURL(file);
+        setPreviewUrl(url);
+
+        // Determine if we should auto-submit or just let them click 'Save'
+        // The prompt says "passed in uploading image -> load/show imediatly -> then save"
+        // So explicit save is likely expected or acceptable.
+    };
+
+    // Cleanup object URL
+    useEffect(() => {
+        return () => {
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+        };
+    }, [previewUrl]);
+
     return (
         <form action={dispatch} className="space-y-4" encType="multipart/form-data">
             <div className="flex flex-col items-center mb-6">
                 <div className="relative w-24 h-24 mb-4">
-                    {user.image ? (
+                    {previewUrl || user.image ? (
                         <Image
-                            src={user.image!} // We check user.image above
+                            src={previewUrl || user.image!} // We check user.image above
                             alt="Profile"
                             width={96}
                             height={96}
@@ -59,9 +89,11 @@ export default function ProfileForm({ user }: { user: User }) {
                         name="image"
                         accept="image/*"
                         className="hidden"
+                        onChange={handleImageChange}
                     />
                 </div>
                 <p className="text-xs text-gray-500">Tap icon to change photo</p>
+                {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
             </div>
 
             <div>
