@@ -47,7 +47,13 @@ export async function signup(prevState: { message: string } | undefined, formDat
     }
 
     try {
-        await signIn('credentials', formData);
+        const redirect = false; // We can handle redirect manually or let it throw
+        // We need to map 'email' or 'phone' to 'identifier' for the auth logic
+        const loginData = new FormData();
+        loginData.append('identifier', email || phone);
+        loginData.append('password', password);
+
+        await signIn('credentials', loginData);
     } catch (error) {
         if (error instanceof AuthError) {
             return { message: 'Something went wrong during auto-login.' };
