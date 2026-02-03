@@ -24,7 +24,7 @@ export async function fetchRandomBackgroundAction(): Promise<BackgroundImage> {
 
     try {
         // Double check avoiding API spam if revalidating too fast
-        return FALLBACK_BG; // Force fallback for now
+        // return FALLBACK_BG; // Removed forced fallback
 
         const categories = [
             "Category:Quality images from Wiki Loves Bangla 2024",
