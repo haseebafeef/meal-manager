@@ -64,3 +64,12 @@ export function formatUserName(user: { id: string; name: string | null; nickname
     }
     return user.nickname || user.name || 'Unknown';
 }
+
+/**
+ * Returns a new Date object shifted to Dhaka Time (UTC+6).
+ * useful for display components where server time is UTC.
+ * e.g. 12:00 UTC -> 18:00 (Face Value)
+ */
+export function toDhakaTime(date: Date | string) {
+    return addHours(new Date(date), DHAKA_OFFSET_HOURS);
+}
