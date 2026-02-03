@@ -1,0 +1,156 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String      @id @default(cuid())
+  name          String
+  email         String?     @unique
+  emailVerified DateTime?
+  phone         String?     @unique
+  password      String?
+  image         String?
+  balance       Float       @default(0)
+  status        String      @default("Active") // Active, Inactive, Deleted
+  isAdmin       Boolean     @default(false)    // Admin privilege
+  nickname      String?     // Optional display name
+
+  statusLogs    UserStatusLog[]
+
+  accounts      Account[]
+
+  // Requests made by this user to add balance (sent to someone else to approve)
+  balanceRequests      Transaction[] @relation("Requester")
+  
+  // Requests received by this user to approve (from others)
+  approvalRequests     Transaction[] @relation("Approver")
+
+  expenses             Expense[]
+  mealStatuses         MealStatus[]
+  snapshots            MonthlySnapshot[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserStatusLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    String   // "Active" | "Inactive" | "Deleted"
+  changedAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Transaction {
+  id        String   @id @default(uuid())
+  amount    Float
+  status    String   @default("PENDING") // PENDING, APPROVED, DECLINED
+  
+  requester   User   @relation("Requester", fields: [requesterId], references: [id])
+  requesterId String
+  
+  approver    User   @relation("Approver", fields: [approverId], references: [id])
+  approverId  String
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  paymentMethod String? // CASH, BKASH, NAGAD, BANK
+  description   String?
+
+  @@index([status])
+  @@index([requesterId])
+  @@index([approverId])
+}
+
+model Expense {
+  id          String   @id @default(uuid())
+  description String
+  amount      Float
+  date        DateTime @default(now())
+  
+  // New fields for detailed tracking
+  volume      String?      // User requested String (e.g. "250gm")
+  unit        Float?       // User requested Float (Quantity)
+  unitPrice   Float?
+  imagePath   String?
+  
+  purchaser   User     @relation(fields: [purchaserId], references: [id])
+  purchaserId String
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([date])
+  @@index([purchaserId])
+}
+
+model MealStatus {
+  id        String   @id @default(uuid())
+  date      DateTime // We will store midnight UTC or local date string logic
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  lunch     Int      @default(1) // Default is ON (1 meal)
+  dinner    Int      @default(1) // Default is ON (1 meal)
+
+  @@unique([date, userId]) // One entry per user per day
+}
+
+model SystemSettings {
+  id    String @id @default(uuid())
+  key   String @unique // e.g., "MEAL_RATE"
+  value String // e.g., "65"
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([email, token])
+}
+
+model MonthlySnapshot {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month     String   // Format "YYYY-MM"
+  year      Int
+  monthNum  Int      // 1-12
+  mealRate  Float
+  totalMeals Float   // Store counts as float if needed, or Int
+  totalCost Float
+  createdAt DateTime @default(now())
+
+  @@unique([userId, month])
+}
