@@ -227,18 +227,100 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner', isEn
 
     try {
         let emailToUpdate = session.user.email;
+        let userIdToLock: string | undefined;
 
-        // Admin Override Logic
+        // 1. Resolve User ID early for locking logic
+        if (targetUserId) {
+            userIdToLock = targetUserId;
+        } else {
+            const u = await prisma.user.findUnique({ where: { email: emailToUpdate } });
+            userIdToLock = u?.id;
+        }
+
+        if (userIdToLock) {
+            // 2. Lock "Today" if Cutoff Passed
+            // Prevents retroactive changes to today's meal status when modifying defaults after the daily cutoff.
+            const now = new Date();
+            const dhakaTimeStr = now.toLocaleString("en-US", { timeZone: "Asia/Dhaka" });
+            const dhakaDate = new Date(dhakaTimeStr);
+            const dhakaTodayMidnight = new Date(Date.UTC(dhakaDate.getFullYear(), dhakaDate.getMonth(), dhakaDate.getDate()));
+
+            const settings = await getSystemSettings();
+            const cutoffStr = type === 'lunch'
+                ? (settings?.[SETTINGS_KEYS.LUNCH_CUTOFF] || '11:00')
+                : (settings?.[SETTINGS_KEYS.DINNER_CUTOFF] || '13:00');
+
+            const [cH, cM] = cutoffStr.split(':').map(Number);
+            const cutoffMins = cH * 60 + cM;
+            const currentMins = dhakaDate.getHours() * 60 + dhakaDate.getMinutes();
+
+            if (currentMins >= cutoffMins) {
+                const existingToday = await prisma.mealStatus.findUnique({
+                    where: {
+                        date_userId: {
+                            date: dhakaTodayMidnight,
+                            userId: userIdToLock
+                        }
+                    }
+                });
+
+                if (!existingToday) {
+                    // Implicit old default usage detected.
+                    // Create an explicit record to preserve the current state before the default changes.
+                    const userForDefaults = await prisma.user.findUnique({
+                        where: { id: userIdToLock },
+                        select: { defaultLunchStatus: true, defaultDinnerStatus: true }
+                    });
+
+                    if (userForDefaults) {
+                        const currentVal = type === 'lunch'
+                            ? (userForDefaults.defaultLunchStatus ? 1 : 0)
+                            : (userForDefaults.defaultDinnerStatus ? 1 : 0);
+
+                        const otherValLunch = userForDefaults.defaultLunchStatus ? 1 : 0;
+                        const otherValDinner = userForDefaults.defaultDinnerStatus ? 1 : 0;
+
+                        await prisma.mealStatus.create({
+                            data: {
+                                userId: userIdToLock,
+                                date: dhakaTodayMidnight,
+                                lunch: type === 'lunch' ? currentVal : otherValLunch,
+                                dinner: type === 'dinner' ? currentVal : otherValDinner
+                            }
+                        });
+                    }
+                }
+            }
+
+            // 3. Force Future Overwrite
+            // Apply new default to all future days to ensure synchronization.
+            // Start Date: "Tomorrow" if cutoff passed, otherwise "Today".
+            const tomorrowMidnight = new Date(dhakaTodayMidnight);
+            tomorrowMidnight.setDate(tomorrowMidnight.getDate() + 1);
+
+            const startDate = (currentMins >= cutoffMins) ? tomorrowMidnight : dhakaTodayMidnight;
+
+            await prisma.mealStatus.updateMany({
+                where: {
+                    userId: userIdToLock,
+                    date: { gte: startDate }
+                },
+                data: {
+                    [type]: isEnabled ? 1 : 0
+                }
+            });
+        }
+
+        // 3. Update the Setting
         if (targetUserId) {
             const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
             if (!currentUser?.isAdmin) {
                 return { error: "Unauthorized: Admin access required" };
             }
-            const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } });
-            if (!targetUser) return { error: "Target user not found" };
-            emailToUpdate = targetUser.email!; // Assumes email exists, or use ID update
 
-            // Safer to update by ID for target
+            // Allow update even if targetUser validation strictly failed above? 
+            // Better to re-check or assuming ID is valid if passed.
+            // Using ID update is safest.
             const field = type === 'lunch' ? 'defaultLunchStatus' : 'defaultDinnerStatus';
             await prisma.user.update({
                 where: { id: targetUserId },
@@ -247,21 +329,18 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner', isEn
             revalidatePath(`/dashboard/admin/meals/${targetUserId}`);
             revalidatePath('/dashboard/meals');
             return { success: true };
+        } else {
+            const field = type === 'lunch' ? 'defaultLunchStatus' : 'defaultDinnerStatus';
+            await prisma.user.update({
+                where: { email: emailToUpdate },
+                data: { [field]: isEnabled }
+            });
+            revalidatePath('/dashboard/meals');
+            if (userIdToLock) {
+                revalidatePath(`/dashboard/admin/meals/${userIdToLock}`);
+            }
+            return { success: true };
         }
-
-        const field = type === 'lunch' ? 'defaultLunchStatus' : 'defaultDinnerStatus';
-        await prisma.user.update({
-            where: { email: emailToUpdate },
-            data: { [field]: isEnabled }
-        });
-        revalidatePath('/dashboard/meals');
-        // Also revalidate admin view for this user
-        // We need the ID for that path.
-        const user = await prisma.user.findUnique({ where: { email: emailToUpdate }, select: { id: true } });
-        if (user) {
-            revalidatePath(`/dashboard/admin/meals/${user.id}`);
-        }
-        return { success: true };
     } catch (error) {
         console.error(`Failed to update default ${type} status:`, error);
         return { error: "Failed to update setting" };

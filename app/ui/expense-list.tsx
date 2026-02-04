@@ -21,7 +21,7 @@ export default async function ExpenseList() {
                         <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-gray-700">
                             {expenses.map((expense: ExpenseItem) => (
                                 <tr key={expense.id} className="border-b last:border-none hover:bg-gray-50 dark:hover:bg-zinc-700/50">
-                                    <td className="whitespace-nowrap px-2 py-2 md:px-3 md:py-3 text-xs md:text-sm">{expense.date.toLocaleDateString()}</td>
+                                    <td className="whitespace-nowrap px-2 py-2 md:px-3 md:py-3 text-xs md:text-sm">{expense.date.toLocaleDateString("en-GB", { timeZone: "Asia/Dhaka" })}</td>
                                     <td className="whitespace-nowrap px-2 py-2 md:px-3 md:py-3 text-xs md:text-sm">{expense.description}</td>
                                     <td className="whitespace-nowrap px-2 py-2 md:px-3 md:py-3 text-xs md:text-sm text-gray-500 dark:text-gray-400">{expense.purchaser.name}</td>
                                     <td className="whitespace-nowrap px-2 py-2 md:px-3 md:py-3 text-xs md:text-sm font-semibold text-gray-900 dark:text-gray-100">৳{expense.amount.toFixed(2)}</td>

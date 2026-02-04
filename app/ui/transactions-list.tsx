@@ -2,7 +2,7 @@ import { prisma } from '@/app/lib/prisma';
 import { auth } from '@/auth';
 import clsx from 'clsx';
 // import { format } from 'date-fns'; 
-import { approveRequest, declineRequest } from '@/app/lib/transaction-actions'; // New actions we need to create
+import { approveRequest, declineRequest } from '@/app/lib/transaction-actions';
 
 
 
@@ -66,7 +66,7 @@ export default async function TransactionsList() {
                                         }
                                     )}>
                                         <td className="whitespace-nowrap py-2 pl-3 md:py-3 md:pl-6 pr-2 md:pr-3 text-gray-900 dark:text-gray-100">
-                                            <p>{tx.createdAt.toLocaleDateString()}</p>
+                                            <p>{tx.createdAt.toLocaleDateString("en-GB", { timeZone: "Asia/Dhaka" })}</p>
                                         </td>
                                         <td className="whitespace-nowrap px-2 py-2 md:px-3 md:py-3 text-gray-500 dark:text-gray-400">
                                             {(() => {
