@@ -1,8 +1,6 @@
 import { getMonthlyExpenses, getAvailableExpenseMonths } from '@/app/lib/expense-actions';
-import { toDhakaTime } from '@/app/lib/utils';
 import MonthSelector from '@/app/ui/month-selector';
 import Image from 'next/image';
-import { format } from 'date-fns';
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/app/lib/prisma';
@@ -117,7 +115,7 @@ export default async function ExpensesPage(props: {
                                                 <div>
                                                     <p className="font-medium text-gray-900 dark:text-white">{expense.description}</p>
                                                     <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                                                        {format(toDhakaTime(expense.date), 'MMM d, h:mm a')}
+                                                        {expense.date.toLocaleDateString("en-GB", { timeZone: "Asia/Dhaka", day: 'numeric', month: 'short' }) + ', ' + expense.date.toLocaleTimeString("en-US", { timeZone: "Asia/Dhaka", hour: 'numeric', minute: '2-digit' })}
                                                     </p>
                                                 </div>
                                             </div>
@@ -165,11 +163,11 @@ export default async function ExpensesPage(props: {
                                                     <div className="flex items-center gap-2">
                                                         <CalendarIcon className="w-4 h-4 text-gray-400" />
                                                         <span className="font-medium text-gray-900 dark:text-white">
-                                                            {format(toDhakaTime(expense.date), 'MMM d, yyyy')}
+                                                            {expense.date.toLocaleDateString("en-GB", { timeZone: "Asia/Dhaka", day: 'numeric', month: 'short', year: 'numeric' })}
                                                         </span>
                                                     </div>
                                                     <div className="text-xs text-gray-500 pl-6">
-                                                        {format(toDhakaTime(expense.date), 'h:mm a')}
+                                                        {expense.date.toLocaleTimeString("en-US", { timeZone: "Asia/Dhaka", hour: 'numeric', minute: '2-digit' })}
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
