@@ -169,7 +169,7 @@ export default async function HistoryPage(props: {
                                         </div>
                                     </td>
                                     <td className="whitespace-nowrap px-3 py-3 font-semibold text-gray-900 dark:text-gray-100">৳{tx.amount.toFixed(2)}</td>
-                                    <td className="whitespace-nowrap px-3 py-3 text-gray-500 dark:text-gray-400">{tx.createdAt.toLocaleDateString()} {tx.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                                    <td className="whitespace-nowrap px-3 py-3 text-gray-500 dark:text-gray-400">{tx.createdAt.toLocaleDateString("en-GB", { timeZone: "Asia/Dhaka" })} {tx.createdAt.toLocaleTimeString("en-US", { timeZone: "Asia/Dhaka", hour: '2-digit', minute: '2-digit' })}</td>
                                     <td className="whitespace-nowrap px-3 py-3 font-medium text-gray-900 dark:text-gray-100">{tx.approver.name}</td>
                                     <td className="whitespace-nowrap px-3 py-3">
                                         <span className={clsx(
