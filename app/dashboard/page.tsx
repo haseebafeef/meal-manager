@@ -79,7 +79,7 @@ export default async function Dashboard() {
                 <div className="flex items-center gap-3 flex-wrap w-full md:w-auto">
                     <ThemeToggle />
                     <Link href="/dashboard/history" className="btn-secondary flex-1 md:flex-none text-center justify-center">History</Link>
-                    <Link href="/dashboard/meals" className="btn-secondary flex-1 md:flex-none text-center justify-center">Meals</Link>
+                    <Link href="/dashboard/meals" className="btn-secondary flex-1 md:flex-none text-center justify-center">Manage Meals</Link>
                     <Link href="/dashboard/requests" className="relative btn-secondary bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800 flex-1 md:flex-none text-center justify-center">
                         Requests
                         {pendingRequestsCount > 0 && (
