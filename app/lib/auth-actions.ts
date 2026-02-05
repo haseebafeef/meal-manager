@@ -309,10 +309,12 @@ async function sendResetEmailInternal(email: string) {
                 subject: 'Reset your password - Meal Manager',
                 html: `
                     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                        <h2>Password Reset</h2>
-                        <p>Click below to reset your password:</p>
+                        <h2>Password Reset Request</h2>
+                        <p>You have requested to reset your password for Meal Manager.</p>
+                        <p>Click the button below to set a new password:</p>
                         <a href="${resetLink}" style="display: inline-block; background-color: #2563EB; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 10px 0;">Reset Password</a>
-                        <p style="color: #666; font-size: 14px;">Expires in 1 hour.</p>
+                        <p style="color: #666; font-size: 14px;">This link will expire in 1 hour.</p>
+                        <p style="color: #666; font-size: 14px;">If you didn't request this, you can safely ignore this email.</p>
                     </div>
                 `,
             });
