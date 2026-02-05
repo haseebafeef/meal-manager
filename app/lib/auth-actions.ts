@@ -80,7 +80,9 @@ export async function requestPasswordReset(prevState: { message: string } | unde
 
     const resetLink = `${baseUrl}/reset-password?token=${token}`;
 
-    console.log('RESET LINK (Simulated):', resetLink); // Keep for dev backup
+    if (process.env.NODE_ENV === 'development') {
+        console.log('RESET LINK (Simulated):', resetLink);
+    }
 
     try {
         if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
@@ -100,7 +102,7 @@ export async function requestPasswordReset(prevState: { message: string } | unde
                 `,
             });
         } else {
-            console.log('Gmail credentials not found. Email not sent.');
+            console.error('[Configuration] Gmail credentials (GMAIL_USER / GMAIL_APP_PASSWORD) are missing. Email not sent.');
         }
     } catch (error) {
         console.error('Failed to send email:', error);
@@ -152,4 +154,170 @@ export async function resetPassword(token: string, prevState: { message: string 
     });
 
     return { message: "Password Reset Successfully! You can now login." };
+}
+
+// --- HYBRID FLOW ACTIONS ---
+
+export type AuthState = {
+    message: string;
+    status?: 'EMAIL_SENT' | 'FOUND_WITH_EMAIL' | 'FOUND_NO_EMAIL' | 'NOT_FOUND';
+    data?: {
+        userId?: string;
+        mask?: string;
+    };
+};
+
+
+
+export async function findAccount(prevState: AuthState | undefined, formData: FormData): Promise<AuthState> {
+    const identifier = formData.get('identifier') as string;
+
+    if (!identifier) return { message: "Please enter email or phone." };
+
+    // 1. Determine Type
+    const isEmail = identifier.includes('@');
+
+    let user;
+    if (isEmail) {
+        user = await prisma.user.findUnique({ where: { email: identifier } });
+    } else {
+        user = await prisma.user.findUnique({ where: { phone: identifier } });
+    }
+
+    if (!user) {
+        // Security: Don't reveal too much, but for this specific "Hostel/Community" app, 
+        // useful feedback is prioritized over strict enumeration protection as requested.
+        // We will return generic "Found" for standard email flow to allow the standard UI to handle it,
+        // BUT if it's phone flow, we need specific steps.
+
+        if (isEmail) {
+            // Trick: If email input, just trigger the standard "Email Sent" fakeout.
+            // But the UI wizard expects a status.
+            return { status: 'NOT_FOUND', message: 'No account found with this credential.' };
+        }
+        return { status: 'NOT_FOUND', message: 'Phone number not found.' };
+    }
+
+    // 2. User Found
+    if (isEmail) {
+        // Standard Email Flow -> Trigger Send immediately
+        await sendResetEmailInternal(user.email!);
+        return { status: 'EMAIL_SENT', message: `Reset link sent to ${maskEmail(user.email!)}` };
+    } else {
+        // Phone Flow
+        if (user.email) {
+            // Case A: Has Email
+            return {
+                status: 'FOUND_WITH_EMAIL',
+                data: {
+                    mask: maskEmail(user.email),
+                    userId: user.id
+                },
+                message: 'Account found.'
+            };
+        } else {
+            // Case B: No Email
+            return {
+                status: 'FOUND_NO_EMAIL',
+                data: { userId: user.id },
+                message: 'No email attached to this phone number.'
+            };
+        }
+    }
+}
+
+export async function verifyAndSend(prevState: AuthState | undefined, formData: FormData): Promise<AuthState> {
+    const userId = formData.get('userId') as string;
+    const confirmEmail = formData.get('email') as string;
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user || !user.email) return { message: "Account error." };
+
+    if (user.email.toLowerCase() !== confirmEmail.toLowerCase()) {
+        return { message: "Email does not match our records." };
+    }
+
+    await sendResetEmailInternal(user.email);
+    return { status: 'EMAIL_SENT', message: "Verified! Reset link sent." };
+}
+
+export async function attachEmailAndReset(prevState: AuthState | undefined, formData: FormData): Promise<AuthState> {
+    const userId = formData.get('userId') as string;
+    const newEmail = formData.get('email') as string;
+
+    // Validate Email
+    const emailParsed = z.string().email().safeParse(newEmail);
+    if (!emailParsed.success) return { message: "Invalid email format." };
+
+    // Check if email taken
+    const existing = await prisma.user.findUnique({ where: { email: newEmail } });
+    if (existing) return { message: "This email is already used by another account." };
+
+    // Update User
+    await prisma.user.update({
+        where: { id: userId },
+        data: { email: newEmail }
+    });
+
+    // Send
+    await sendResetEmailInternal(newEmail);
+
+    if (process.env.NODE_ENV === 'development') {
+        console.log(`[DEV] Email ${newEmail} attached to user ${userId} via Recovery Flow`);
+    }
+
+    return { status: 'EMAIL_SENT', message: "Email attached & Link sent!" };
+}
+
+
+// --- INTERNAL HELPERS ---
+
+function maskEmail(email: string) {
+    const [local, domain] = email.split('@');
+    if (local.length <= 2) return `${local}***@${domain}`;
+    return `${local.slice(0, 2)}***@${domain}`;
+}
+
+async function sendResetEmailInternal(email: string) {
+    // Generate Token
+    const token = uuidv4();
+    const expires = new Date(new Date().getTime() + 3600 * 1000); // 1 hour
+
+    // Delete existing tokens
+    await prisma.passwordResetToken.deleteMany({ where: { email } });
+
+    // Create new token
+    await prisma.passwordResetToken.create({
+        data: { email, token, expires },
+    });
+
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+    if (!baseUrl) {
+        console.error("NEXT_PUBLIC_BASE_URL missing");
+        return;
+    }
+
+    const resetLink = `${baseUrl}/reset-password?token=${token}`;
+    console.log('RESET LINK:', resetLink);
+
+    try {
+        if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+            await transporter.sendMail({
+                from: `"Meal Manager" <${process.env.GMAIL_USER}>`,
+                to: email,
+                subject: 'Reset your password - Meal Manager',
+                html: `
+                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                        <h2>Password Reset</h2>
+                        <p>Click below to reset your password:</p>
+                        <a href="${resetLink}" style="display: inline-block; background-color: #2563EB; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 10px 0;">Reset Password</a>
+                        <p style="color: #666; font-size: 14px;">Expires in 1 hour.</p>
+                    </div>
+                `,
+            });
+        }
+    } catch (e) {
+        console.error("Email send failed:", e);
+    }
 }

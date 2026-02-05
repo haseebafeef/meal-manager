@@ -6,10 +6,12 @@ import UserDropdown from '@/app/ui/user-dropdown';
 import Link from 'next/link';
 
 import { prisma } from '@/app/lib/prisma';
+import { getBatchUserSummaries } from '@/app/lib/expense-actions';
 
 import Pagination from '@/app/ui/pagination';
 
 const ITEMS_PER_PAGE = 15;
+export const dynamic = 'force-dynamic';
 
 export default async function HistoryPage(props: {
     searchParams?: Promise<{
@@ -58,13 +60,16 @@ export default async function HistoryPage(props: {
     });
 
 
+    // 3. Get Batch Summaries
+    const userSummaries = await getBatchUserSummaries();
+
     return (
         <main className="flex min-h-screen flex-col p-4 md:p-6 bg-gray-50 dark:bg-zinc-900 text-gray-900 dark:text-gray-100 transition-colors">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <h1 className="text-2xl font-bold">Global History & Balances</h1>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full md:w-auto flex-wrap">
                     <ThemeToggle />
-                    <Link href="/dashboard" className="btn-secondary">Back to Dashboard</Link>
+                    <Link href="/dashboard" className="btn-secondary flex-1 md:flex-none text-center">Dashboard</Link>
                     <UserDropdown user={currentUser} />
                 </div>
             </div>
@@ -78,21 +83,26 @@ export default async function HistoryPage(props: {
                     <thead className="rounded-lg text-left text-sm font-normal">
                         <tr>
                             <th scope="col" className="px-4 py-3 font-medium sm:pl-6 text-gray-500 dark:text-gray-400">User</th>
-                            <th scope="col" className="px-3 py-3 font-medium text-gray-500 dark:text-gray-400">Balance</th>
+                            <th scope="col" className="px-3 py-3 font-medium text-gray-500 dark:text-gray-400">Net Balance</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-100 dark:divide-gray-700">
-                        {(currentUser.isAdmin ? users : users.filter(u => u.id === currentUser.id)).map((u) => (
-                            <tr key={u.id} className="w-full py-3 text-sm hover:bg-gray-50 dark:hover:bg-zinc-700/50 transition-colors">
-                                <td className="whitespace-nowrap py-3 pl-6 pr-3 font-medium">{u.name}</td>
-                                <td className={clsx(
-                                    "whitespace-nowrap px-3 py-3 font-bold",
-                                    (u.balance || 0) >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-                                )}>
-                                    {u.balance ?? 0} tk
-                                </td>
-                            </tr>
-                        ))}
+                        {(currentUser.isAdmin ? users : users.filter(u => u.id === currentUser.id)).map((u) => {
+                            const summary = userSummaries.get(u.id);
+                            const netBalance = summary ? summary.remainingBalance : 0;
+
+                            return (
+                                <tr key={u.id} className="w-full py-3 text-sm hover:bg-gray-50 dark:hover:bg-zinc-700/50 transition-colors">
+                                    <td className="whitespace-nowrap py-3 pl-6 pr-3 font-medium">{u.name}</td>
+                                    <td className={clsx(
+                                        "whitespace-nowrap px-3 py-3 font-bold",
+                                        (netBalance || 0) >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                                    )}>
+                                        {netBalance.toFixed(2)} tk
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>

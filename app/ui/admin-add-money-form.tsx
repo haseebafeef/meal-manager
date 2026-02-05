@@ -30,7 +30,7 @@ export default function AdminAddMoneyForm({ users }: { users: { id: string, name
                     <select
                         id="admin-target-user"
                         name="userId"
-                        className="peer block w-full rounded-md border border-gray-200 dark:border-gray-600 py-[9px] pl-10 text-sm outline-2 placeholder:text-gray-500 text-gray-900 dark:text-gray-100 dark:bg-zinc-800"
+                        className="peer block w-full rounded-md border border-gray-200 dark:border-gray-600 py-[9px] pl-10 text-base outline-2 placeholder:text-gray-500 text-gray-900 dark:text-gray-100 dark:bg-zinc-800"
                         required
                         defaultValue=""
                     >
@@ -57,7 +57,7 @@ export default function AdminAddMoneyForm({ users }: { users: { id: string, name
                         type="number"
                         step="0.01"
                         placeholder="0.00"
-                        className="peer block w-full rounded-md border border-gray-200 dark:border-gray-600 py-[9px] pl-10 text-sm outline-2 placeholder:text-gray-500 text-gray-900 dark:text-gray-100 dark:bg-zinc-800"
+                        className="peer block w-full rounded-md border border-gray-200 dark:border-gray-600 py-[9px] pl-10 text-base outline-2 placeholder:text-gray-500 text-gray-900 dark:text-gray-100 dark:bg-zinc-800"
                         required
                     />
                     <CurrencyDollarIcon className="pointer-events-none absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-500 peer-focus:text-gray-900" />
@@ -73,7 +73,7 @@ export default function AdminAddMoneyForm({ users }: { users: { id: string, name
                     <select
                         id="admin-payment-method"
                         name="paymentMethod"
-                        className="peer block w-full rounded-md border border-gray-200 dark:border-gray-600 py-[9px] pl-10 text-sm outline-2 placeholder:text-gray-500 text-gray-900 dark:text-gray-100 dark:bg-zinc-800"
+                        className="peer block w-full rounded-md border border-gray-200 dark:border-gray-600 py-[9px] pl-10 text-base outline-2 placeholder:text-gray-500 text-gray-900 dark:text-gray-100 dark:bg-zinc-800"
                         defaultValue="Cash"
                     >
                         <option value="Cash">Cash</option>

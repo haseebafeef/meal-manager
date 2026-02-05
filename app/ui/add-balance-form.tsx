@@ -42,7 +42,7 @@ export default function AddBalanceForm({ users }: { users: { id: string, name: s
                     <label className="mb-3 block text-xs font-medium text-gray-900 dark:text-gray-300" htmlFor="amount">Amount</label>
                     <div className="relative">
                         <input
-                            className="peer block w-full rounded-md border border-gray-200 dark:border-gray-600 py-[9px] pl-10 text-sm outline-2 placeholder:text-gray-500 text-gray-900 dark:text-gray-100 dark:bg-zinc-800"
+                            className="peer block w-full rounded-md border border-gray-200 dark:border-gray-600 py-[9px] pl-10 text-base outline-2 placeholder:text-gray-500 text-gray-900 dark:text-gray-100 dark:bg-zinc-800"
                             id="amount"
                             type="number"
                             step="0.01"
@@ -59,7 +59,7 @@ export default function AddBalanceForm({ users }: { users: { id: string, name: s
                     <label className="mb-3 block text-xs font-medium text-gray-900 dark:text-gray-300" htmlFor="paymentMethod">Money Sent Through</label>
                     <div className="relative">
                         <select
-                            className="peer block w-full rounded-md border border-gray-200 dark:border-gray-600 py-[9px] px-3 text-sm outline-2 placeholder:text-gray-500 text-gray-900 dark:text-gray-100 dark:bg-zinc-800 appearance-none"
+                            className="peer block w-full rounded-md border border-gray-200 dark:border-gray-600 py-[9px] px-3 text-base outline-2 placeholder:text-gray-500 text-gray-900 dark:text-gray-100 dark:bg-zinc-800 appearance-none"
                             id="paymentMethod"
                             name="paymentMethod"
                             defaultValue=""
@@ -79,7 +79,7 @@ export default function AddBalanceForm({ users }: { users: { id: string, name: s
                     <label className="mb-3 block text-xs font-medium text-gray-900 dark:text-gray-300" htmlFor="receiverId">Sent To</label>
                     <div className="relative">
                         <select
-                            className="peer block w-full rounded-md border border-gray-200 dark:border-gray-600 py-[9px] pl-10 text-sm outline-2 placeholder:text-gray-500 text-gray-900 dark:text-gray-100 dark:bg-zinc-800"
+                            className="peer block w-full rounded-md border border-gray-200 dark:border-gray-600 py-[9px] pl-10 text-base outline-2 placeholder:text-gray-500 text-gray-900 dark:text-gray-100 dark:bg-zinc-800"
                             id="receiverId"
                             name="receiverId"
                             defaultValue=""

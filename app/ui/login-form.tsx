@@ -5,6 +5,7 @@ import { useActionState } from 'react';
 import { authenticate, googleAuthenticate } from '@/app/lib/actions';
 import { AtSymbolIcon, KeyIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 import { ArrowRightIcon } from '@heroicons/react/20/solid';
+import { Button } from './button';
 import Link from 'next/link';
 
 export default function LoginForm() {
@@ -21,14 +22,14 @@ export default function LoginForm() {
                     <div className="w-full">
                         <div>
                             <label
-                                className="mb-3 mt-5 block text-xs font-medium text-gray-900"
+                                className="mb-2 mt-3 block text-xs font-medium text-gray-900"
                                 htmlFor="identifier"
                             >
                                 Email or Phone
                             </label>
                             <div className="relative">
                                 <input
-                                    className="peer block w-full rounded-md border border-gray-200 py-[9px] pl-10 text-sm outline-2 placeholder:text-gray-500 text-gray-900"
+                                    className="peer block w-full rounded-md border border-gray-200 py-[9px] pl-10 text-base outline-2 placeholder:text-gray-500 text-gray-900"
                                     id="identifier"
                                     type="text"
                                     name="identifier"
@@ -38,16 +39,16 @@ export default function LoginForm() {
                                 <AtSymbolIcon className="pointer-events-none absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-500 peer-focus:text-gray-900" />
                             </div>
                         </div>
-                        <div className="mt-4">
+                        <div className="mt-3">
                             <label
-                                className="mb-3 mt-5 block text-xs font-medium text-gray-900"
+                                className="mb-2 mt-3 block text-xs font-medium text-gray-900"
                                 htmlFor="password"
                             >
                                 Password
                             </label>
                             <div className="relative">
                                 <input
-                                    className="peer block w-full rounded-md border border-gray-200 py-[9px] pl-10 text-sm outline-2 placeholder:text-gray-500 text-gray-900"
+                                    className="peer block w-full rounded-md border border-gray-200 py-[9px] pl-10 text-base outline-2 placeholder:text-gray-500 text-gray-900"
                                     id="password"
                                     type="password"
                                     name="password"
@@ -67,7 +68,7 @@ export default function LoginForm() {
                     <LoginButton />
 
                     <div
-                        className="flex h-8 items-end space-x-1"
+                        className="flex items-end space-x-1"
                         aria-live="polite"
                         aria-atomic="true"
                     >
@@ -80,7 +81,7 @@ export default function LoginForm() {
                     </div>
                 </form>
 
-                <div className="flex items-center my-4">
+                <div className="flex items-center my-2">
                     <div className="flex-grow border-t border-gray-300"></div>
                     <span className="flex-shrink-0 mx-4 text-gray-500 text-sm">OR</span>
                     <div className="flex-grow border-t border-gray-300"></div>
@@ -97,17 +98,22 @@ export default function LoginForm() {
                         Sign in with Google
                     </button>
                 </form>
+
+                <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
+                    Don&apos;t have an account? <Link href="/signup" className="font-semibold text-blue-600 hover:text-blue-500">Sign up</Link>
+                </div>
             </div>
         </div>
     );
 }
 
+// FIXING LOGIN FORM MARGIN
 function LoginButton() {
     const { pending } = useFormStatus();
 
     return (
-        <button className="mt-4 w-full bg-blue-500 text-white rounded-md p-2 hover:bg-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 active:bg-blue-600 aria-disabled:cursor-not-allowed aria-disabled:opacity-50" aria-disabled={pending}>
+        <Button className="mt-2 w-full" aria-disabled={pending}>
             Log in <ArrowRightIcon className="ml-auto h-5 w-5 text-gray-50" />
-        </button>
+        </Button>
     );
 }

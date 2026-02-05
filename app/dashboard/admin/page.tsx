@@ -9,14 +9,11 @@ import { prisma } from '@/app/lib/prisma';
 
 export default async function AdminHubPage() {
     const session = await auth();
-    console.log('Admin Page Session:', session?.user?.email);
-
     // Verify admin
     const currentUser = await prisma.user.findUnique({ where: { email: session?.user?.email || '' } });
-    console.log('Admin Page User:', currentUser?.name, 'IsAdmin:', currentUser?.isAdmin);
 
     if (!currentUser || !currentUser.isAdmin) {
-        console.log('Redirecting to dashboard...');
+        console.warn(`[Admin] Unauthorized access attempt by ${session?.user?.email}`);
         redirect('/dashboard');
     }
 

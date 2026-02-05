@@ -5,7 +5,7 @@ import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
 import { getStartOfMonthDhaka, getNowDhaka } from '@/app/lib/utils';
 import { getMonthlyMealHistory } from '@/app/lib/meal-actions';
-import { SETTINGS_KEYS } from '@/app/lib/constants';
+import { SETTINGS_KEYS, DEFAULT_SETTINGS } from '@/app/lib/constants';
 
 
 import { prisma } from '@/app/lib/prisma';
@@ -325,10 +325,10 @@ export async function getUserSummary(userId: string) {
     const settings = await prisma.systemSettings.findMany();
     const settingsMap = new Map(settings.map(s => [s.key, s.value]));
 
-    const lunchCutoffStr = settingsMap.get('LUNCH_CUTOFF') || '11:00';
-    const dinnerCutoffStr = settingsMap.get('DINNER_CUTOFF') || '13:00';
-    const currentRate = parseFloat(settingsMap.get('MEAL_RATE') || '70');
-    const prevRate = parseFloat(settingsMap.get('PREVIOUS_MEAL_RATE') || '70');
+    const lunchCutoffStr = settingsMap.get(SETTINGS_KEYS.LUNCH_CUTOFF) || DEFAULT_SETTINGS[SETTINGS_KEYS.LUNCH_CUTOFF];
+    const dinnerCutoffStr = settingsMap.get(SETTINGS_KEYS.DINNER_CUTOFF) || DEFAULT_SETTINGS[SETTINGS_KEYS.DINNER_CUTOFF];
+    const currentRate = parseFloat(settingsMap.get(SETTINGS_KEYS.MEAL_RATE) || DEFAULT_SETTINGS[SETTINGS_KEYS.MEAL_RATE]);
+    const prevRate = parseFloat(settingsMap.get(SETTINGS_KEYS.PREV_MEAL_RATE) || DEFAULT_SETTINGS[SETTINGS_KEYS.PREV_MEAL_RATE]);
 
     const lunchCutoffMins = parseTimeToMinutes(lunchCutoffStr);
     const dinnerCutoffMins = parseTimeToMinutes(dinnerCutoffStr);
@@ -362,9 +362,16 @@ export async function getUserSummary(userId: string) {
     });
     const currentMonthCredit = currentMonthCreditData._sum.amount || 0;
 
-    // 4. Fetch ALL Meal Statuses
+    // 4. Fetch Meal Statuses (Last 18 Months Only)
+    // We limit history scan to keep dashboard fast. Older months are assumed snapshotted or irrelevant for daily view.
+    const historyLimit = new Date();
+    historyLimit.setMonth(historyLimit.getMonth() - 18);
+
     const allMeals = await prisma.mealStatus.findMany({
-        where: { userId: userId }
+        where: {
+            userId: userId,
+            date: { gte: historyLimit }
+        }
     });
 
     const mealMap = new Map();
@@ -385,9 +392,9 @@ export async function getUserSummary(userId: string) {
 
     // Time Logic for Today
     const nowDhaka = getNowDhaka();
-    const currentDay = nowDhaka.getDate();
-    const currentHour = nowDhaka.getHours();
-    const currentMinute = nowDhaka.getMinutes();
+    const currentDay = nowDhaka.getUTCDate();
+    const currentHour = nowDhaka.getUTCHours();
+    const currentMinute = nowDhaka.getUTCMinutes();
     const nowMins = currentHour * 60 + currentMinute;
 
     // A. Current Month Calculation (Iteration Loop)
@@ -550,6 +557,187 @@ export async function getUserSummary(userId: string) {
         remainingBalance: trueRemainingBalance,
         passedMealCount: currentMonthPassedCount
     };
+}
+
+// --- OPTIMIZED BATCH FUNCTION ---
+export async function getBatchUserSummaries() {
+    // 1. Setup Time Boundaries
+    const nowDhaka = getNowDhaka();
+    const currentMonthStartDhaka = getStartOfMonthDhaka();
+    const currentMonthStartUTC = new Date(currentMonthStartDhaka.getTime() - 6 * 60 * 60 * 1000); // Shift for DB query
+
+    const prevMonthStartDhaka = new Date(currentMonthStartDhaka);
+    prevMonthStartDhaka.setMonth(prevMonthStartDhaka.getMonth() - 1);
+    const prevMonthStartUTC = new Date(prevMonthStartDhaka.getTime() - 6 * 60 * 60 * 1000);
+
+    // 2. Fetch ALL required data in Parallel
+    // 2. Fetch ALL required data in Parallel
+    const [
+        users,
+        settings,
+        allSnapshots,
+        recentMeals
+    ] = await prisma.$transaction([
+        prisma.user.findMany({
+            include: {
+                statusLogs: { orderBy: { changedAt: 'asc' } }
+            }
+        }),
+        prisma.systemSettings.findMany(),
+        // Fetch detailed snapshots for granularity (checking which months are closed)
+        prisma.monthlySnapshot.findMany({
+            select: { userId: true, month: true, totalCost: true }
+        }),
+        prisma.mealStatus.findMany({
+            where: {
+                date: { gte: prevMonthStartUTC }
+            }
+        })
+    ]);
+
+    // 3. Process Settings
+    const settingsMap = new Map(settings.map(s => [s.key, s.value]));
+    const currentRate = parseFloat(settingsMap.get(SETTINGS_KEYS.MEAL_RATE) || DEFAULT_SETTINGS[SETTINGS_KEYS.MEAL_RATE]);
+    const prevRate = parseFloat(settingsMap.get(SETTINGS_KEYS.PREV_MEAL_RATE) || DEFAULT_SETTINGS[SETTINGS_KEYS.PREV_MEAL_RATE]);
+    const lunchCutoffStr = settingsMap.get(SETTINGS_KEYS.LUNCH_CUTOFF) || DEFAULT_SETTINGS[SETTINGS_KEYS.LUNCH_CUTOFF];
+    const dinnerCutoffStr = settingsMap.get(SETTINGS_KEYS.DINNER_CUTOFF) || DEFAULT_SETTINGS[SETTINGS_KEYS.DINNER_CUTOFF];
+    const lunchCutoffMins = parseTimeToMinutes(lunchCutoffStr);
+    const dinnerCutoffMins = parseTimeToMinutes(dinnerCutoffStr);
+
+    const nowMins = nowDhaka.getUTCHours() * 60 + nowDhaka.getUTCMinutes();
+    const currentDay = nowDhaka.getUTCDate();
+
+
+
+
+    // 4. Index Data for O(1) Access
+
+    // Process Snapshots: Build BOTH Cost Sums and Closed Month Sets
+    const userClosedMonths = new Map<string, Set<string>>();
+    const userFixedCost = new Map<string, number>();
+
+    allSnapshots.forEach(s => {
+        if (!userClosedMonths.has(s.userId)) userClosedMonths.set(s.userId, new Set());
+        userClosedMonths.get(s.userId)?.add(s.month); // "YYYY-MM"
+
+        const currentTotal = userFixedCost.get(s.userId) || 0;
+        userFixedCost.set(s.userId, currentTotal + s.totalCost);
+    });
+
+    // Group meals by UserId -> DateKey
+    const mealsByUser = new Map<string, Map<string, (typeof recentMeals)[0]>>();
+    recentMeals.forEach(m => {
+        if (!mealsByUser.has(m.userId)) mealsByUser.set(m.userId, new Map());
+        const dateKey = m.date.toISOString().split('T')[0];
+        mealsByUser.get(m.userId)?.set(dateKey, m);
+    });
+
+    // 5. Calculate per User
+    const results = new Map();
+
+    for (const user of users) {
+        // A. Fixed History
+        let totalCost = userFixedCost.get(user.id) || 0;
+        const closedMonths = userClosedMonths.get(user.id) || new Set();
+
+        // B. Dynamic Recent (Prev + Current)
+        const userMealsMap = mealsByUser.get(user.id) || new Map();
+
+        // 1. Previous Month (Iterate days)
+        const pmKey = formatMonthKey(prevMonthStartUTC); // "YYYY-MM"
+        if (!closedMonths.has(pmKey)) {
+            // Dynamic Calc for Prev Month
+            const pmDhaka = new Date(prevMonthStartDhaka);
+            const pmYear = pmDhaka.getFullYear();
+            const pmMonth = pmDhaka.getMonth();
+            const daysInPrevMonth = new Date(pmYear, pmMonth + 1, 0).getDate();
+
+
+
+            for (let d = 1; d <= daysInPrevMonth; d++) {
+                const targetDate = new Date(Date.UTC(pmYear, pmMonth, d));
+                const dateKey = targetDate.toISOString().split('T')[0];
+                const status = userMealsMap.get(dateKey); // Explicit Meal
+
+                // Determine historical active status based on logs up to this date
+                const dayEnd = new Date(targetDate.getTime() + 24 * 60 * 60 * 1000 - 1);
+
+                let computedStatus = 'Active';
+                if (user.statusLogs) {
+                    const activeLogs = user.statusLogs.filter(log => log.changedAt <= dayEnd);
+                    if (activeLogs.length > 0) {
+                        computedStatus = activeLogs[activeLogs.length - 1].status;
+                    }
+                }
+
+                let isActive = (computedStatus === 'Active');
+                if (user.createdAt > dayEnd) isActive = false;
+
+                // Default to 'Active' if no logs exist, unless created after this date
+
+                let l = 1, dMeal = 1;
+                if (status) { l = status.lunch; dMeal = status.dinner; }
+                else if (!isActive) { l = 0; dMeal = 0; }
+                else { l = user.defaultLunchStatus ? 1 : 0; dMeal = user.defaultDinnerStatus ? 1 : 0; }
+
+                totalCost += (l + dMeal) * prevRate;
+            }
+        }
+
+        // 2. Current Month (Iterate days up to today/end)
+        const cmKey = formatMonthKey(currentMonthStartUTC);
+        if (!closedMonths.has(cmKey)) {
+            const cmDhaka = new Date(currentMonthStartDhaka);
+            const cmYear = cmDhaka.getFullYear();
+            const cmMonth = cmDhaka.getMonth(); // 0-11
+            const daysInCurrentMonth = new Date(cmYear, cmMonth + 1, 0).getDate();
+
+            for (let d = 1; d <= daysInCurrentMonth; d++) {
+                const targetDate = new Date(Date.UTC(cmYear, cmMonth, d));
+                const dateKey = targetDate.toISOString().split('T')[0];
+                const status = userMealsMap.get(dateKey);
+
+                // Date logic
+                const isPast = d < currentDay;
+                const isToday = d === currentDay;
+
+                // Determine historical active status based on logs up to this date
+                const dayEnd = new Date(targetDate.getTime() + 24 * 60 * 60 * 1000 - 1);
+
+                let computedStatus = 'Active';
+                if (user.statusLogs) {
+                    const activeLogs = user.statusLogs.filter(log => log.changedAt <= dayEnd);
+                    if (activeLogs.length > 0) {
+                        computedStatus = activeLogs[activeLogs.length - 1].status;
+                    }
+                }
+
+                let isActive = (computedStatus === 'Active');
+                if (user.createdAt > dayEnd) isActive = false;
+
+                let l = 1, dMeal = 1;
+                if (status) { l = status.lunch; dMeal = status.dinner; }
+                else if (!isActive) { l = 0; dMeal = 0; }
+                else { l = user.defaultLunchStatus ? 1 : 0; dMeal = user.defaultDinnerStatus ? 1 : 0; }
+
+                // Passed Check
+                let passedL = 0, passedD = 0;
+                if (isPast) { passedL = l; passedD = dMeal; }
+                else if (isToday) {
+                    if (nowMins >= lunchCutoffMins) passedL = l;
+                    if (nowMins >= dinnerCutoffMins) passedD = dMeal;
+                }
+
+                totalCost += (passedL + passedD) * currentRate;
+            }
+        }
+
+        results.set(user.id, {
+            remainingBalance: (user.balance || 0) - totalCost
+        });
+    }
+
+    return results;
 }
 
 export async function getDetailedExpenses() {
@@ -756,4 +944,3 @@ export async function syncUserStatus(userId: string) {
         revalidatePath('/dashboard/meals');
     }
 }
-

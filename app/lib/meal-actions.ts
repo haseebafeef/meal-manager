@@ -226,7 +226,7 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner', isEn
     if (!session?.user?.email) return { error: "Not authenticated" };
 
     try {
-        let emailToUpdate = session.user.email;
+        const emailToUpdate = session.user.email;
         let userIdToLock: string | undefined;
 
         // 1. Resolve User ID early for locking logic
@@ -488,6 +488,53 @@ export async function getMonthlyMealHistory(year: number, month: number) {
 
     const currentMins = nowDhaka.getHours() * 60 + nowDhaka.getMinutes();
 
+    // --- NEW: Calculate User Activation Date ---
+    // Rule: User is inactive until their First Meal Order (lunch>0 or dinner>0) 
+    // OR until they have a historical Snapshot (Legacy/Billed users).
+
+    // 1. First Meal Dates
+    const firstMeals = await prisma.mealStatus.groupBy({
+        by: ['userId'],
+        _min: { date: true },
+        where: {
+            OR: [
+                { lunch: { gt: 0 } },
+                { dinner: { gt: 0 } }
+            ]
+        }
+    });
+
+    // 2. First Snapshot Dates (Billing History)
+    // Snapshots store 'year' and 'month' (String YYYY-MM). We need to convert.
+    // groupBy might not be sufficient if we need to parse fields, but we can fetch min year/month logic?
+    // Optimization: Just fetch all snapshot 'month' keys per user?
+    const snapshots = await prisma.monthlySnapshot.groupBy({
+        by: ['userId'],
+        _min: { month: true } // "2025-01" sorts correctly as string
+    });
+
+    const activationMap = new Map<string, Date>();
+
+    firstMeals.forEach(fm => {
+        if (fm._min.date) {
+            activationMap.set(fm.userId, fm._min.date);
+        }
+    });
+
+    snapshots.forEach(sn => {
+        if (sn._min.month) {
+            const [y, m] = sn._min.month.split('-').map(Number);
+            const snapDate = new Date(Date.UTC(y, m - 1, 1)); // First day of billed month
+
+            const existing = activationMap.get(sn.userId);
+            if (!existing || snapDate < existing) {
+                activationMap.set(sn.userId, snapDate);
+            }
+        }
+    });
+    // -------------------------------------------
+
+
     while (current <= end) {
         const dateKey = current.toISOString().split('T')[0];
         let lunchCount = 0;
@@ -513,7 +560,26 @@ export async function getMonthlyMealHistory(year: number, month: number) {
             nextDay.setUTCDate(current.getUTCDate() + 1);
             if (user.createdAt >= nextDay && !status) return;
 
-            // 2. Status Timeline Check
+            // 2. Activation Check (First Order Rule)
+            const activationDate = activationMap.get(user.id);
+            // If user has NO activation date -> They never ordered -> Skip
+            // UNLESS they have a status record for THIS day (Edge case: they ordered 0 meals? Treated as interaction?)
+            // But if status exists, lunch/dinner might be 0.
+            if (!activationDate) {
+                // No history ever. 
+                // Allow IF they have explicit status for today (even 0 implies tracking started for this day)
+                if (!status) return;
+            } else {
+                // Check if current date is before activation
+                // Compare YYYY-MM-DD strings or timestamps
+                if (current.getTime() < activationDate.getTime()) {
+                    // Check if strict: if they have explicit status for this pre-activation day, respect it.
+                    if (!status) return;
+                }
+            }
+
+
+            // 3. Status Timeline Check
             let computedStatus = 'Active';
             const activeLogs = user.statusLogs.filter(log => log.changedAt <= dayEnd);
             if (activeLogs.length > 0) {

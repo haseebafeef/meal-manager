@@ -47,7 +47,7 @@ export async function signup(prevState: { message: string } | undefined, formDat
     }
 
     try {
-        const redirect = false; // We can handle redirect manually or let it throw
+        // const redirect = false; // We can handle redirect manually or let it throw
         // We need to map 'email' or 'phone' to 'identifier' for the auth logic
         const loginData = new FormData();
         loginData.append('identifier', email || phone);

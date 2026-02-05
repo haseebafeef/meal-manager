@@ -5,15 +5,7 @@ import { auth } from '@/auth';
 
 import { prisma } from '@/app/lib/prisma';
 
-import { SETTINGS_KEYS } from './constants';
-
-
-const DEFAULT_SETTINGS = {
-    [SETTINGS_KEYS.DINNER_CUTOFF]: '13:00',
-    [SETTINGS_KEYS.MEAL_RATE]: '65',
-    [SETTINGS_KEYS.PREV_MEAL_RATE]: '65',
-    [SETTINGS_KEYS.AUTO_OFF_THRESHOLD]: '-300'
-};
+import { DEFAULT_SETTINGS } from './constants';
 
 export async function getSystemSettings() {
     const session = await auth();

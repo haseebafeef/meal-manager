@@ -144,11 +144,11 @@ export default async function TransactionsList() {
                                                 <div className="flex gap-2 mt-2">
                                                     <form action={async (formData) => { 'use server'; await approveRequest(formData); }}>
                                                         <input type="hidden" name="id" value={tx.id} />
-                                                        <button className="px-2 py-1 text-xs bg-green-50 text-green-600 border border-green-200 rounded hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/40">Accept</button>
+                                                        <button className="px-3 py-1.5 md:px-2 md:py-1 text-sm md:text-xs bg-green-50 text-green-600 border border-green-200 rounded hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/40 font-medium">Accept</button>
                                                     </form>
                                                     <form action={async (formData) => { 'use server'; await declineRequest(formData); }}>
                                                         <input type="hidden" name="id" value={tx.id} />
-                                                        <button className="px-2 py-1 text-xs bg-red-50 text-red-600 border border-red-200 rounded hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/40">Decline</button>
+                                                        <button className="px-3 py-1.5 md:px-2 md:py-1 text-sm md:text-xs bg-red-50 text-red-600 border border-red-200 rounded hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/40 font-medium">Decline</button>
                                                     </form>
                                                 </div>
                                             )}

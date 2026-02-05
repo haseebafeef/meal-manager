@@ -22,7 +22,7 @@ export default function SignupForm() {
                     <div className="w-full">
                         {/* Name */}
                         <div>
-                            <label className="mb-3 mt-5 block text-xs font-medium text-gray-900" htmlFor="name">
+                            <label className="mb-2 mt-3 block text-xs font-medium text-gray-900" htmlFor="name">
                                 Name
                             </label>
                             <div className="relative">
@@ -40,7 +40,7 @@ export default function SignupForm() {
 
                         {/* Email */}
                         <div>
-                            <label className="mb-3 mt-5 block text-xs font-medium text-gray-900" htmlFor="email">
+                            <label className="mb-2 mt-3 block text-xs font-medium text-gray-900" htmlFor="email">
                                 Email (Optional)
                             </label>
                             <div className="relative">
@@ -57,7 +57,7 @@ export default function SignupForm() {
 
                         {/* Phone */}
                         <div>
-                            <label className="mb-3 mt-5 block text-xs font-medium text-gray-900" htmlFor="phone">
+                            <label className="mb-2 mt-3 block text-xs font-medium text-gray-900" htmlFor="phone">
                                 Phone
                             </label>
                             <div className="relative">
@@ -74,8 +74,8 @@ export default function SignupForm() {
                         </div>
 
                         {/* Password */}
-                        <div className="mt-4">
-                            <label className="mb-3 mt-5 block text-xs font-medium text-gray-900" htmlFor="password">
+                        <div className="mt-3">
+                            <label className="mb-2 mt-3 block text-xs font-medium text-gray-900" htmlFor="password">
                                 Password
                             </label>
                             <div className="relative">
@@ -94,7 +94,7 @@ export default function SignupForm() {
                     </div>
                     <SignupButton />
 
-                    <div className="flex h-8 items-end space-x-1" aria-live="polite" aria-atomic="true">
+                    <div className="flex items-end space-x-1" aria-live="polite" aria-atomic="true">
                         {state?.message && (
                             <>
                                 <ExclamationCircleIcon className="h-5 w-5 text-red-500" />
@@ -104,7 +104,7 @@ export default function SignupForm() {
                     </div>
                 </form>
 
-                <div className="flex items-center my-4">
+                <div className="flex items-center my-2">
                     <div className="flex-grow border-t border-gray-300"></div>
                     <span className="flex-shrink-0 mx-4 text-gray-500 text-sm">OR</span>
                     <div className="flex-grow border-t border-gray-300"></div>
@@ -122,7 +122,7 @@ export default function SignupForm() {
                     </button>
                 </form>
 
-                <div className="mt-4 text-center text-sm">
+                <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
                     Already have an account? <Link href="/login" className="font-semibold text-blue-600 hover:text-blue-500">Log in</Link>
                 </div>
             </div>
@@ -134,7 +134,7 @@ function SignupButton() {
     const { pending } = useFormStatus();
 
     return (
-        <Button className="mt-4 w-full" aria-disabled={pending}>
+        <Button className="mt-6 w-full" aria-disabled={pending}>
             Sign up <ArrowRightIcon className="ml-auto h-5 w-5 text-gray-50" />
         </Button>
     );

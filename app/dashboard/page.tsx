@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import AddBalanceForm from '@/app/ui/add-balance-form';
 import TransactionsList from '@/app/ui/transactions-list';
 import AddExpensesTable from '@/app/ui/add-expenses-table';
@@ -17,7 +18,6 @@ import UserDropdown from '@/app/ui/user-dropdown';
 
 export default async function Dashboard() {
     const session = await auth();
-    console.log('Dashboard Page Session:', session);
 
     if (!session?.user?.email) {
         redirect('/login');
@@ -35,14 +35,10 @@ export default async function Dashboard() {
         currentUser = await prisma.user.findFirst({ where: { email: userEmail } });
     }
 
-    console.log('Dashboard User Lookup:', { userId, userEmail, found: !!currentUser });
-
     if (!currentUser) {
-        console.log('Dashboard: User not found in DB, redirecting to login');
+        console.error(`[Dashboard] Session/DB Mismatch: User ${userEmail} (${userId}) not found in database. Redirecting to login.`);
         redirect('/login');
     }
-
-    console.time('dashboard-data-fetch');
 
     // Parallel Data Fetching
     console.time('dashboard-parallel-fetch');
@@ -66,36 +62,35 @@ export default async function Dashboard() {
         select: { id: true, name: true, email: true }
     });
 
-    console.timeEnd('dashboard-data-fetch');
 
     return (
         <main className="text-gray-900 dark:text-gray-100 p-4 md:p-6 pb-64 transition-colors duration-300 pointer-events-none">
             {/* Header Section */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-gray-200 dark:border-gray-800 pb-6 pointer-events-auto">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 gap-4 border-b border-gray-200 dark:border-gray-800 pb-6 pointer-events-auto w-full">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-                    <p className="text-gray-500 dark:text-gray-400 mt-1">
+                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Dashboard</h1>
+                    <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm md:text-base">
                         Welcome back, <span className="font-semibold text-gray-900 dark:text-white">{currentUser?.name}</span>
                     </p>
                     <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                         Your Balance: <span className={`font-bold text-lg ${userSummary.remainingBalance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>৳{userSummary.remainingBalance.toFixed(2)}</span>
                     </p>
                 </div>
-                <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-3 flex-wrap w-full md:w-auto">
                     <ThemeToggle />
-                    <a href="/dashboard/history" className="btn-secondary">History</a>
-                    <a href="/dashboard/meals" className="btn-secondary">Manage Meals</a>
-                    <a href="/dashboard/requests" className="relative btn-secondary bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800">
+                    <Link href="/dashboard/history" className="btn-secondary flex-1 md:flex-none text-center justify-center">History</Link>
+                    <Link href="/dashboard/meals" className="btn-secondary flex-1 md:flex-none text-center justify-center">Meals</Link>
+                    <Link href="/dashboard/requests" className="relative btn-secondary bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800 flex-1 md:flex-none text-center justify-center">
                         Requests
                         {pendingRequestsCount > 0 && (
                             <span className="absolute -top-2 -right-2 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-600 rounded-full ring-2 ring-white dark:ring-zinc-900">
                                 {pendingRequestsCount}
                             </span>
                         )}
-                    </a>
+                    </Link>
 
                     {/* User Profile Dropdown */}
-                    <div className="ml-2">
+                    <div className="ml-0 md:ml-2">
                         <UserDropdown user={{
                             name: currentUser.name,
                             image: currentUser.image,
@@ -104,10 +99,10 @@ export default async function Dashboard() {
                         }} />
                     </div>
                 </div>
-            </div>
+            </div >
 
             {/* Daily Meal Status */}
-            <div className="mb-8 p-6 rounded-xl bg-white/80 dark:bg-black/60 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-sm pointer-events-auto">
+            < div className="mb-8 p-6 rounded-xl bg-white/80 dark:bg-black/60 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-sm pointer-events-auto" >
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-lg font-bold text-gray-900 dark:text-white">Today&apos;s Meal Overview</h2>
                     <a href={`/dashboard/meals/history`} className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 hover:underline">
@@ -140,10 +135,10 @@ export default async function Dashboard() {
                         </p>
                     </div>
                 </div>
-            </div>
+            </div >
 
             {/* User Personal Summary */}
-            <div className="mb-8 p-4 md:p-6 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-100 dark:border-blue-900/30 shadow-sm pointer-events-auto">
+            < div className="mb-8 p-4 md:p-6 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-100 dark:border-blue-900/30 shadow-sm pointer-events-auto" >
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">My Summary (This Month)</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-6">
                     <SummaryCard title="Prev. Month Balance" amount={userSummary.previousMonthBalance} color="gray" />
@@ -152,15 +147,15 @@ export default async function Dashboard() {
                     <SummaryCard title="Used (Est. Costs)" amount={userSummary.currentMonthUsed} color="orange" />
                     <SummaryCard title="My Remaining Balance" amount={userSummary.remainingBalance} color={userSummary.remainingBalance >= 0 ? 'green' : 'red'} />
                 </div>
-            </div>
+            </div >
 
             {/* Summary Grid (System) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-8 pointer-events-auto">
+            < div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-8 pointer-events-auto" >
                 <SummaryCard title="Prev. Month Balance" amount={summary.previousMonthBalance} color="gray" />
                 <SummaryCard title="Total Credit (This Month)" amount={summary.currentMonthCredit} color="blue" />
                 <SummaryCard title="Expenses (This Month)" amount={summary.currentMonthExpenses} color="red" />
                 <SummaryCard title="Remaining Fund" amount={summary.remainingFund} color={summary.remainingFund >= 0 ? 'green' : 'red'} />
-            </div>
+            </div >
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Left Column: Actions */}
@@ -207,7 +202,7 @@ export default async function Dashboard() {
                     <TransactionsList />
                 </div>
             </div>
-        </main>
+        </main >
     );
 }
 

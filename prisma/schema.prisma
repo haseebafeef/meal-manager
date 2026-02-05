@@ -124,6 +124,7 @@ model MealStatus {
   dinner    Int      @default(1) // Default is ON (1 meal)
 
   @@unique([date, userId]) // One entry per user per day
+  @@index([userId, date])  // Optimize range queries for specific users
 }
 
 model SystemSettings {
