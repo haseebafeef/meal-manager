@@ -1,0 +1,19 @@
+name: Trigger Daily Report
+
+on:
+  schedule:
+    # Run every 10 minutes (UTC)
+    # This ensures we "catch" the Target Time shortly after it passes.
+    # Why 10 mins? To balance precision vs GitHub Free Tier limits.
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allow manual trigger button in GitHub UI
+
+jobs:
+  ping-cron:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Vercel Cron Endpoint
+        run: |
+          curl -X GET "${{ secrets.VERCEL_URL }}/api/cron/daily-report" \
+          -H "Authorization: Bearer ${{ secrets.cron_secret }}" \
+          --fail
