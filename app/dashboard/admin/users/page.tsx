@@ -7,6 +7,7 @@ import { ThemeToggle } from '@/app/ui/theme-toggle';
 import UserDropdown from '@/app/ui/user-dropdown';
 import Link from 'next/link';
 import UserRowActions from './user-row-actions';
+import UserTagEditor from './user-tag-editor';
 
 import { prisma } from '@/app/lib/prisma';
 
@@ -45,6 +46,7 @@ export default async function AdminUsersPage() {
                                 <th scope="col" className="px-4 py-3">Email</th>
                                 <th scope="col" className="px-4 py-3">Balance</th>
                                 <th scope="col" className="px-4 py-3">Role</th>
+                                <th scope="col" className="px-4 py-3">Tag</th>
                                 <th scope="col" className="px-4 py-3 text-right">Actions</th>
                             </tr>
                         </thead>
@@ -60,6 +62,7 @@ export default async function AdminUsersPage() {
                                                     width={32}
                                                     height={32}
                                                     className="rounded-full object-cover"
+                                                    sizes="32px"
                                                 />
                                             ) : (
                                                 <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
@@ -81,6 +84,9 @@ export default async function AdminUsersPage() {
                                                 User
                                             </span>
                                         )}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <UserTagEditor userId={user.id} initialTag={user.tag} />
                                     </td>
                                     <td className="px-4 py-3 text-right">
                                         <UserRowActions user={user} isSelf={user.id === currentUser.id} />

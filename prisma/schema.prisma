@@ -22,6 +22,8 @@ model User {
   nickname      String?     // Optional display name
   defaultLunchStatus  Boolean @default(false)  // Default Lunch (OFF)
   defaultDinnerStatus Boolean @default(false)  // Default Dinner (OFF)
+  receiveDailyReports Boolean @default(false)  // Admin controlled flag for notifications
+  tag                 String  @default("5B")   // User group tag for reports
 
   statusLogs    UserStatusLog[]
 
@@ -36,9 +38,23 @@ model User {
   expenses             Expense[]
   mealStatuses         MealStatus[]
   snapshots            MonthlySnapshot[]
+  pushSubscriptions PushSubscription[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  keys      Json     // Stored as JSON: { p256dh: string, auth: string }
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model UserStatusLog {

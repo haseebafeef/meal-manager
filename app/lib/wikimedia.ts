@@ -35,6 +35,7 @@ export async function fetchRandomBackgroundAction(): Promise<BackgroundImage> {
         const randomCategory = categories[Math.floor(Math.random() * categories.length)];
         console.log("Fetching background from category:", randomCategory);
 
+
         const params = new URLSearchParams({
             action: "query",
             generator: "categorymembers",

@@ -7,6 +7,7 @@ import { prisma } from '@/app/lib/prisma';
 import ProfileForm from '@/app/ui/profile-form';
 import SecurityForm from '@/app/ui/security-form';
 import ConnectedAccounts from '@/app/ui/connected-accounts';
+import NotificationManager from '@/app/ui/notification-manager';
 
 
 
@@ -38,6 +39,13 @@ export default async function ProfilePage() {
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div className="space-y-6">
+                    {/* Notification Setting (Only visible if Admin granted permission) */}
+                    {user.receiveDailyReports && (
+                        <div className="rounded-xl border bg-white dark:bg-zinc-800 p-6 shadow-sm border-gray-100 dark:border-gray-700">
+                            <NotificationManager />
+                        </div>
+                    )}
+
                     <div className="rounded-xl border bg-white dark:bg-zinc-800 p-6 shadow-sm border-gray-100 dark:border-gray-700">
                         <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Personal Information</h2>
                         <ProfileForm user={user} />

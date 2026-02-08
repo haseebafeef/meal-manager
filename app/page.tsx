@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
 import BackgroundWrapper from "@/app/ui/background-wrapper";
+import { Footer } from "@/app/ui/footer";
 
 export default async function Home() {
   const session = await auth();
@@ -40,6 +41,7 @@ export default async function Home() {
         <div className="mt-16 text-sm text-white/70">
           © 2026 Meal Manager App. All rights reserved.
         </div>
+        <Footer />
       </main>
     </BackgroundWrapper>
   );

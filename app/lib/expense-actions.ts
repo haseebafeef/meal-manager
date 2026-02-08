@@ -72,8 +72,8 @@ export async function addExpense(prevState: { message: string } | undefined, for
     return { message: 'Expense added successfully!' };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getExpenses(): Promise<any> {
+
+export async function getExpenses() {
     const twentyDaysAgo = new Date();
     twentyDaysAgo.setDate(twentyDaysAgo.getDate() - 20);
 
@@ -82,6 +82,7 @@ export async function getExpenses(): Promise<any> {
             date: { gte: twentyDaysAgo }
         },
         orderBy: { date: 'desc' },
+        take: 10,
         include: { purchaser: { select: { name: true } } }
     });
 }
@@ -111,8 +112,8 @@ const ExpenseItemSchema = z.object({
     amount: z.coerce.number().gt(0, "Amount/Cost required"),
 });
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function addBatchExpenses(prevState: any, formData: FormData) {
+
+export async function addBatchExpenses(prevState: { error?: string; success?: string } | null, formData: FormData) {
     const session = await auth();
     if (!session?.user?.email) return { error: "Not authenticated" };
 
@@ -209,7 +210,7 @@ export async function getSystemSummary() {
     const dhakaStart = getStartOfMonthDhaka();
     const queryStart = new Date(dhakaStart.getTime() - 6 * 60 * 60 * 1000);
 
-    // 1. Current Month Expenses
+
     // Parallelize Aggregations
     const [currentMonthExpenses, currentMonthCreditData, prevExpenses, prevCredit] = await prisma.$transaction([
         prisma.expense.aggregate({
@@ -571,7 +572,6 @@ export async function getBatchUserSummaries() {
     const prevMonthStartUTC = new Date(prevMonthStartDhaka.getTime() - 6 * 60 * 60 * 1000);
 
     // 2. Fetch ALL required data in Parallel
-    // 2. Fetch ALL required data in Parallel
     const [
         users,
         settings,
@@ -636,11 +636,11 @@ export async function getBatchUserSummaries() {
     const results = new Map();
 
     for (const user of users) {
-        // A. Fixed History
+        // Calculate Fixed History
         let totalCost = userFixedCost.get(user.id) || 0;
         const closedMonths = userClosedMonths.get(user.id) || new Set();
 
-        // B. Dynamic Recent (Prev + Current)
+        // Calculate Dynamic Recent (Prev + Current)
         const userMealsMap = mealsByUser.get(user.id) || new Map();
 
         // 1. Previous Month (Iterate days)
@@ -786,7 +786,7 @@ export async function getMonthlyExpenses(year: number, month: number) {
         orderBy: { date: 'desc' },
         include: {
             purchaser: {
-                select: { name: true, nickname: true, image: true }
+                select: { name: true, nickname: true }
             }
         }
     });
@@ -804,7 +804,6 @@ export async function getMonthlyExpenses(year: number, month: number) {
             unitPrice: e.unitPrice,
             imagePath: e.imagePath,
             purchaserName: e.purchaser.nickname || e.purchaser.name,
-            purchaserImage: e.purchaser.image
         })),
         total
     };

@@ -1,5 +1,6 @@
 import LoginForm from '@/app/ui/login-form';
 import BackgroundWrapper from '@/app/ui/background-wrapper';
+import { Footer } from '@/app/ui/footer';
 
 export default function LoginPage() {
     return (
@@ -12,6 +13,9 @@ export default function LoginPage() {
                         </div>
                     </div>
                     <LoginForm />
+                </div>
+                <div className="fixed bottom-0 w-full">
+                    <Footer />
                 </div>
             </main>
         </BackgroundWrapper>

@@ -10,9 +10,6 @@ import { syncUserStatus } from '@/app/lib/expense-actions';
 
 import { prisma } from '@/app/lib/prisma';
 
-// Initial fixed rate (fallback)
-
-
 export async function getMealStatus(targetUserId?: string) {
     const session = await auth();
     if (!session?.user) return [];
@@ -348,8 +345,8 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner', isEn
 }
 
 
-export async function getDailyMealStats() {
-    const now = new Date();
+export async function getDailyMealStats(date?: Date) {
+    const now = date || new Date();
     // Local Time logic for "Today"
     const dhakaTimeStr = now.toLocaleString("en-US", { timeZone: "Asia/Dhaka" });
     const dhakaDate = new Date(dhakaTimeStr);
@@ -488,7 +485,7 @@ export async function getMonthlyMealHistory(year: number, month: number) {
 
     const currentMins = nowDhaka.getHours() * 60 + nowDhaka.getMinutes();
 
-    // --- NEW: Calculate User Activation Date ---
+    // --- Calculate User Activation Date ---
     // Rule: User is inactive until their First Meal Order (lunch>0 or dinner>0) 
     // OR until they have a historical Snapshot (Legacy/Billed users).
 
@@ -532,7 +529,7 @@ export async function getMonthlyMealHistory(year: number, month: number) {
             }
         }
     });
-    // -------------------------------------------
+
 
 
     while (current <= end) {

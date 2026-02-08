@@ -70,6 +70,13 @@ export default function SettingsContent() {
                             type="number"
                             prefix="৳"
                         />
+                        <SettingRow
+                            label="Daily Report Delivery Time"
+                            description="When to send the push notification (Dhaka Time)"
+                            settingKey={SETTINGS_KEYS.REPORT_DELIVERY_TIME}
+                            initialValue={settings[SETTINGS_KEYS.REPORT_DELIVERY_TIME] || '10:00'}
+                            type="time"
+                        />
                     </tbody>
                 </table>
             </div>

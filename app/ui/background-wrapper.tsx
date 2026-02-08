@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import { fetchRandomBackgroundAction } from "@/app/lib/wikimedia";
 
+
 export default async function BackgroundWrapper({ children }: { children: React.ReactNode }) {
     // Fetch background on the server
     const bg = await fetchRandomBackgroundAction();
@@ -18,6 +19,7 @@ export default async function BackgroundWrapper({ children }: { children: React.
                         className="object-cover"
                         quality={75}
                         priority
+                        unoptimized // Save Vercel Limits
                     />
                     {/* Overlay for Contrast - Gradient for better text readability */}
                     <div className="absolute inset-0 bg-gradient-to-br from-white/60 via-white/40 to-white/60 dark:from-black/70 dark:via-black/50 dark:to-black/70 backdrop-blur-[3px]" />
@@ -27,12 +29,6 @@ export default async function BackgroundWrapper({ children }: { children: React.
             {/* Content Layer */}
             <div className="relative z-10 min-h-screen flex flex-col">
                 {children}
-
-                <footer className="py-6 text-center text-sm text-gray-600 dark:text-gray-300 mt-auto">
-                    <p className="flex items-center justify-center gap-1 bg-white/40 dark:bg-black/40 backdrop-blur-md py-1 px-3 rounded-full inline-block mx-auto border border-white/20 dark:border-white/10 shadow-sm">
-                        Designed & Developed with <span className="text-red-500 animate-pulse">❤</span> by <a href="https://github.com/haseebafeef/" target="_blank" className="font-bold hover:text-blue-600 dark:hover:text-blue-400 underline decoration-dotted underline-offset-2">Haseeb</a>
-                    </p>
-                </footer>
             </div>
 
             {/* Attribution Footer (floating) */}

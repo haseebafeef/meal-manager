@@ -3,7 +3,7 @@
 import { auth } from '@/auth';
 import { prisma } from '@/app/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { getUserSummary } from '@/app/lib/expense-actions';
+import { getBatchUserSummaries } from '@/app/lib/expense-actions';
 
 export async function toggleAdminStatus(userId: string, currentStatus: boolean) {
     const session = await auth();
@@ -81,18 +81,21 @@ export async function getAllUsers() {
             image: true,
             isAdmin: true,
             status: true,
-            balance: true
+            balance: true,
+            tag: true
         }
     });
 
-    // Calculate Net Balance for each user
-    const usersWithNetBalance = await Promise.all(users.map(async (user) => {
-        const summary = await getUserSummary(user.id);
+    // Optimized: Calculate Net Balance for all users in parallel
+    const userBalances = await getBatchUserSummaries();
+
+    const usersWithNetBalance = users.map((user) => {
+        const summary = userBalances.get(user.id);
         return {
             ...user,
-            balance: summary.remainingBalance // Overlay raw balance with Net/Remaining
+            balance: summary ? summary.remainingBalance : user.balance // Use calculated net balance
         };
-    }));
+    });
 
     return usersWithNetBalance;
 }

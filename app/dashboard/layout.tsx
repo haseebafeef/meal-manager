@@ -1,4 +1,4 @@
-import BackgroundWrapper from "@/app/ui/background-wrapper";
+import { Footer } from "@/app/ui/footer";
 
 export default function DashboardLayout({
     children,
@@ -6,8 +6,9 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }) {
     return (
-        <BackgroundWrapper>
+        <div className="relative min-h-screen flex flex-col">
             {children}
-        </BackgroundWrapper>
+            <Footer />
+        </div>
     );
 }

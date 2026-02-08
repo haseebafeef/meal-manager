@@ -1,6 +1,5 @@
 import { getMonthlyExpenses, getAvailableExpenseMonths } from '@/app/lib/expense-actions';
 import MonthSelector from '@/app/ui/month-selector';
-import Image from 'next/image';
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/app/lib/prisma';
@@ -99,19 +98,6 @@ export default async function ExpensesPage(props: {
                                     <div key={expense.id} className="p-4 space-y-3">
                                         <div className="flex justify-between items-start">
                                             <div className="flex items-center gap-3">
-                                                {expense.purchaserImage ? (
-                                                    <Image
-                                                        src={expense.purchaserImage}
-                                                        className="rounded-full ring-2 ring-white dark:ring-zinc-800"
-                                                        width={36}
-                                                        height={36}
-                                                        alt={expense.purchaserName}
-                                                    />
-                                                ) : (
-                                                    <div className="h-9 w-9 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-bold ring-2 ring-white dark:ring-zinc-800">
-                                                        {expense.purchaserName[0]}
-                                                    </div>
-                                                )}
                                                 <div>
                                                     <p className="font-medium text-gray-900 dark:text-white">{expense.description}</p>
                                                     <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
@@ -130,12 +116,16 @@ export default async function ExpensesPage(props: {
                                                     </span>
                                                 )}
                                             </div>
-                                            {expense.imagePath && (
-                                                <a href={expense.imagePath} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 dark:text-blue-400 text-xs hover:underline">
-                                                    <PhotoIcon className="w-4 h-4" />
-                                                    Memo
-                                                </a>
-                                            )}
+                                            <div className="flex items-center gap-2">
+                                                {/* Mobile Purchaser Name */}
+                                                <span className="text-xs text-gray-400">by {expense.purchaserName}</span>
+                                                {expense.imagePath && (
+                                                    <a href={expense.imagePath} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 dark:text-blue-400 text-xs hover:underline">
+                                                        <PhotoIcon className="w-4 h-4" />
+                                                        Memo
+                                                    </a>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
@@ -186,22 +176,7 @@ export default async function ExpensesPage(props: {
                                                     ৳{expense.amount.toLocaleString()}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="flex items-center gap-3">
-                                                        {expense.purchaserImage ? (
-                                                            <Image
-                                                                src={expense.purchaserImage}
-                                                                className="rounded-full ring-2 ring-white dark:ring-zinc-800"
-                                                                width={32}
-                                                                height={32}
-                                                                alt={expense.purchaserName}
-                                                            />
-                                                        ) : (
-                                                            <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-bold ring-2 ring-white dark:ring-zinc-800">
-                                                                {expense.purchaserName[0]}
-                                                            </div>
-                                                        )}
-                                                        <span className="font-medium text-gray-700 dark:text-gray-300">{expense.purchaserName}</span>
-                                                    </div>
+                                                    <span className="font-medium text-gray-700 dark:text-gray-300">{expense.purchaserName}</span>
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
                                                     {expense.imagePath ? (
@@ -227,6 +202,6 @@ export default async function ExpensesPage(props: {
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

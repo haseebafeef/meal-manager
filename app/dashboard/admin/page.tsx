@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { ThemeToggle } from '@/app/ui/theme-toggle';
 import UserDropdown from '@/app/ui/user-dropdown';
 import Link from 'next/link';
-import { UserGroupIcon, Cog6ToothIcon, CurrencyBangladeshiIcon } from '@heroicons/react/24/outline';
+import { UserGroupIcon, Cog6ToothIcon, CurrencyBangladeshiIcon, BellAlertIcon } from '@heroicons/react/24/outline';
 
 import { prisma } from '@/app/lib/prisma';
 
@@ -42,6 +42,14 @@ export default async function AdminHubPage() {
             color: 'text-green-600 dark:text-green-400',
             bg: 'bg-green-100 dark:bg-green-900/20'
         },
+        {
+            href: '/dashboard/admin/notifications',
+            title: 'Notification Settings',
+            description: 'Manage who receives the daily meal reports.',
+            icon: BellAlertIcon,
+            color: 'text-amber-600 dark:text-amber-400',
+            bg: 'bg-amber-100 dark:bg-amber-900/20'
+        },
     ];
 
     return (
@@ -54,6 +62,8 @@ export default async function AdminHubPage() {
                     <UserDropdown user={currentUser} />
                 </div>
             </div>
+
+
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
                 {links.map((link) => (

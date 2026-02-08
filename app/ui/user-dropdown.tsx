@@ -45,6 +45,7 @@ export default function UserDropdown({ user }: UserDropdownProps) {
                         height={40}
                         className="rounded-full object-cover border-2 border-gray-200 dark:border-gray-700 w-10 h-10"
                         onError={() => setImageError(true)}
+                        sizes="40px"
                     />
                 ) : (
                     <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400 border-2 border-transparent dark:border-blue-800">
