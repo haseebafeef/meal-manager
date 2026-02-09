@@ -2,7 +2,7 @@ import { prisma } from '@/app/lib/prisma';
 import webPush from 'web-push';
 import { NextResponse } from 'next/server';
 import { SETTINGS_KEYS, DEFAULT_SETTINGS } from '@/app/lib/constants';
-import { sendWhatsAppMessage } from '@/app/lib/whatsapp';
+// import { sendWhatsAppMessage } from '@/app/lib/whatsapp';
 
 // Configure Web Push with env vars
 const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -190,36 +190,36 @@ export async function GET(request: Request) {
                 }
 
                 // B. WhatsApp (New - Detailed)
-                if (user.phone) {
-                    // Use 'meal_report_flex' if available, otherwise fallback to 'hello_world' but we really want the text.
-                    // Since 'meal_report_flex' isn't created yet in Meta, we might fail if we try to send this big body 
-                    // into a 'hello_world'.
-                    // Strategy: For NOW, we will attempt to send it using 'hello_world' just to test connectivity,
-                    // BUT 'hello_world' doesn't support parameters. 
-                    // So we MUST use the new template name 'meal_report_flex'. 
-                    // If the user hasn't created it yet, this will fail with "Template not found".
-                    // This is intentional - it forces the 'Production Readiness' step.
-
-                    const waResult = await sendWhatsAppMessage({
-                        to: user.phone,
-                        templateName: 'meal_report_flex', // Expecting this to exist
-                        languageCode: 'en_US',
-                        components: [
-                            {
-                                type: 'body',
-                                parameters: [
-                                    { type: 'text', text: reportBody }
-                                ]
-                            }
-                        ]
-                    });
-
-                    if (waResult.success) {
-                        logs.push(`WhatsApp Sent to ${user.phone}`);
-                    } else {
-                        logs.push(`WhatsApp Failed: ${waResult.error}`);
-                    }
-                }
+                // if (user.phone) {
+                //     // Use 'meal_report_flex' if available, otherwise fallback to 'hello_world' but we really want the text.
+                //     // Since 'meal_report_flex' isn't created yet in Meta, we might fail if we try to send this big body 
+                //     // into a 'hello_world'.
+                //     // Strategy: For NOW, we will attempt to send it using 'hello_world' just to test connectivity,
+                //     // BUT 'hello_world' doesn't support parameters. 
+                //     // So we MUST use the new template name 'meal_report_flex'. 
+                //     // If the user hasn't created it yet, this will fail with "Template not found".
+                //     // This is intentional - it forces the 'Production Readiness' step.
+                //
+                //     const waResult = await sendWhatsAppMessage({
+                //         to: user.phone,
+                //         templateName: 'meal_report_flex', // Expecting this to exist
+                //         languageCode: 'en_US',
+                //         components: [
+                //             {
+                //                 type: 'body',
+                //                 parameters: [
+                //                     { type: 'text', text: reportBody }
+                //                 ]
+                //             }
+                //         ]
+                //     });
+                //
+                //     if (waResult.success) {
+                //         logs.push(`WhatsApp Sent to ${user.phone}`);
+                //     } else {
+                //         logs.push(`WhatsApp Failed: ${waResult.error}`);
+                //     }
+                // }
 
                 return { userId: user.id, logs };
             })
