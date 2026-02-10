@@ -226,7 +226,7 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner', isEn
         const emailToUpdate = session.user.email;
         let userIdToLock: string | undefined;
 
-        // 1. Resolve User ID early for locking logic
+        // 1. Resolve User ID early
         if (targetUserId) {
             userIdToLock = targetUserId;
         } else {
@@ -235,8 +235,8 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner', isEn
         }
 
         if (userIdToLock) {
-            // 2. Lock "Today" if Cutoff Passed
-            // Prevents retroactive changes to today's meal status when modifying defaults after the daily cutoff.
+            // --- Shared Date & Settings Logic ---
+            // Define all time variables here to avoid scope issues
             const now = new Date();
             const dhakaTimeStr = now.toLocaleString("en-US", { timeZone: "Asia/Dhaka" });
             const dhakaDate = new Date(dhakaTimeStr);
@@ -251,25 +251,70 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner', isEn
             const cutoffMins = cH * 60 + cM;
             const currentMins = dhakaDate.getHours() * 60 + dhakaDate.getMinutes();
 
-            if (currentMins >= cutoffMins) {
-                const existingToday = await prisma.mealStatus.findUnique({
-                    where: {
-                        date_userId: {
-                            date: dhakaTodayMidnight,
-                            userId: userIdToLock
-                        }
-                    }
-                });
+            // 2. Lock History: Backfill "Past Days of Current Month" with *OLD* Defaults
+            // This prevents "Time Travel" where changing default today retcons the past.
+            const userForDefaults = await prisma.user.findUnique({
+                where: { id: userIdToLock },
+                select: { defaultLunchStatus: true, defaultDinnerStatus: true }
+            });
 
-                if (!existingToday) {
-                    // Implicit old default usage detected.
-                    // Create an explicit record to preserve the current state before the default changes.
-                    const userForDefaults = await prisma.user.findUnique({
-                        where: { id: userIdToLock },
-                        select: { defaultLunchStatus: true, defaultDinnerStatus: true }
+            if (userForDefaults) {
+                const oldDefaultLunch = userForDefaults.defaultLunchStatus ? 1 : 0;
+                const oldDefaultDinner = userForDefaults.defaultDinnerStatus ? 1 : 0;
+
+                // Range: Start of Month -> Yesterday (inclusive)
+                const startOfMonthDate = new Date(Date.UTC(dhakaDate.getFullYear(), dhakaDate.getMonth(), 1));
+                const yesterdayMidnight = new Date(dhakaTodayMidnight);
+                yesterdayMidnight.setDate(yesterdayMidnight.getDate() - 1);
+
+                if (yesterdayMidnight >= startOfMonthDate) {
+                    const existingRecords = await prisma.mealStatus.findMany({
+                        where: {
+                            userId: userIdToLock,
+                            date: {
+                                gte: startOfMonthDate,
+                                lte: yesterdayMidnight
+                            }
+                        },
+                        select: { date: true }
                     });
 
-                    if (userForDefaults) {
+                    const existingDates = new Set(existingRecords.map((r: { date: Date }) => r.date.getTime()));
+                    const toCreate = [];
+
+                    // Iterate Start -> Yesterday
+                    const dIter = new Date(startOfMonthDate);
+                    while (dIter.getTime() <= yesterdayMidnight.getTime()) {
+                        if (!existingDates.has(dIter.getTime())) {
+                            toCreate.push({
+                                userId: userIdToLock,
+                                date: new Date(dIter),
+                                lunch: oldDefaultLunch,
+                                dinner: oldDefaultDinner
+                            });
+                        }
+                        dIter.setDate(dIter.getDate() + 1);
+                    }
+
+                    if (toCreate.length > 0) {
+                        await prisma.mealStatus.createMany({
+                            data: toCreate
+                        });
+                    }
+                }
+
+                // 3. Lock "Today" if Cutoff Passed
+                if (currentMins >= cutoffMins) {
+                    const existingToday = await prisma.mealStatus.findUnique({
+                        where: {
+                            date_userId: {
+                                date: dhakaTodayMidnight,
+                                userId: userIdToLock
+                            }
+                        }
+                    });
+
+                    if (!existingToday) {
                         const currentVal = type === 'lunch'
                             ? (userForDefaults.defaultLunchStatus ? 1 : 0)
                             : (userForDefaults.defaultDinnerStatus ? 1 : 0);
@@ -289,8 +334,7 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner', isEn
                 }
             }
 
-            // 3. Force Future Overwrite
-            // Apply new default to all future days to ensure synchronization.
+            // 4. Force Future Overwrite
             // Start Date: "Tomorrow" if cutoff passed, otherwise "Today".
             const tomorrowMidnight = new Date(dhakaTodayMidnight);
             tomorrowMidnight.setDate(tomorrowMidnight.getDate() + 1);
@@ -308,16 +352,13 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner', isEn
             });
         }
 
-        // 3. Update the Setting
+        // 5. Update the Setting
         if (targetUserId) {
             const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
             if (!currentUser?.isAdmin) {
                 return { error: "Unauthorized: Admin access required" };
             }
 
-            // Allow update even if targetUser validation strictly failed above? 
-            // Better to re-check or assuming ID is valid if passed.
-            // Using ID update is safest.
             const field = type === 'lunch' ? 'defaultLunchStatus' : 'defaultDinnerStatus';
             await prisma.user.update({
                 where: { id: targetUserId },
