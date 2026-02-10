@@ -1,0 +1,39 @@
+﻿Finding user 'Md. Haseeb Afeef'...
+Found: Md. Haseeb Afeef
+--- STARTING DEBUG LOGIC ---
+Dhaka Month Start (Face Value): 2026-01-31T18:00:00.000Z
+Query (UTC) Start: 2026-01-31T12:00:00.000Z
+Cutoffs: L=11:00 (660m), D=11:00 (660m)
+User Defaults: L=false, D=false, CreatedAt=2026-02-03T04:35:19.479Z
+Found 8 total meal records since 18 months ago.
+Now Dhaka (Face Value): 2026-02-10T10:05:52.000Z | Day=10 Time=10:5 (605m)
+Day 1 (2026-02-01): L=1 D=1 => Passed: L=1 D=1 | Act:false |  [RECORD] [PAST]
+Day 2 (2026-02-02): L=1 D=1 => Passed: L=1 D=1 | Act:false |  [RECORD] [PAST]
+Day 3 (2026-02-03): L=1 D=1 => Passed: L=1 D=1 | Act:true |  [RECORD] [PAST]
+Day 4 (2026-02-04): L=1 D=1 => Passed: L=1 D=1 | Act:true |  [RECORD] [PAST]
+Day 5 (2026-02-05): L=1 D=1 => Passed: L=1 D=1 | Act:true |  [RECORD] [PAST]
+Day 6 (2026-02-06): L=1 D=1 => Passed: L=1 D=1 | Act:true |  [RECORD] [PAST]
+Day 7 (2026-02-07): L=1 D=1 => Passed: L=1 D=1 | Act:true |  [RECORD] [PAST]
+Day 8 (2026-02-08): L=0 D=0 => Passed: L=0 D=0 | Act:true |  [DEFAULT] [PAST]
+Day 9 (2026-02-09): L=0 D=0 => Passed: L=0 D=0 | Act:true |  [DEFAULT] [PAST]
+Day 10 (2026-02-10): L=1 D=1 => Passed: L=0 D=0 | Act:true |  [RECORD] [TODAY]
+Day 11 (2026-02-11): L=0 D=0 => Passed: L=0 D=0 | Act:true |  [DEFAULT]
+Day 12 (2026-02-12): L=0 D=0 => Passed: L=0 D=0 | Act:true |  [DEFAULT]
+Day 13 (2026-02-13): L=0 D=0 => Passed: L=0 D=0 | Act:true |  [DEFAULT]
+Day 14 (2026-02-14): L=0 D=0 => Passed: L=0 D=0 | Act:true |  [DEFAULT]
+Day 15 (2026-02-15): L=0 D=0 => Passed: L=0 D=0 | Act:true |  [DEFAULT]
+Day 16 (2026-02-16): L=0 D=0 => Passed: L=0 D=0 | Act:true |  [DEFAULT]
+Day 17 (2026-02-17): L=0 D=0 => Passed: L=0 D=0 | Act:true |  [DEFAULT]
+Day 18 (2026-02-18): L=0 D=0 => Passed: L=0 D=0 | Act:true |  [DEFAULT]
+Day 19 (2026-02-19): L=0 D=0 => Passed: L=0 D=0 | Act:true |  [DEFAULT]
+Day 20 (2026-02-20): L=0 D=0 => Passed: L=0 D=0 | Act:true |  [DEFAULT]
+Day 21 (2026-02-21): L=0 D=0 => Passed: L=0 D=0 | Act:true |  [DEFAULT]
+Day 22 (2026-02-22): L=0 D=0 => Passed: L=0 D=0 | Act:true |  [DEFAULT]
+Day 23 (2026-02-23): L=0 D=0 => Passed: L=0 D=0 | Act:true |  [DEFAULT]
+Day 24 (2026-02-24): L=0 D=0 => Passed: L=0 D=0 | Act:true |  [DEFAULT]
+Day 25 (2026-02-25): L=0 D=0 => Passed: L=0 D=0 | Act:true |  [DEFAULT]
+Day 26 (2026-02-26): L=0 D=0 => Passed: L=0 D=0 | Act:true |  [DEFAULT]
+Day 27 (2026-02-27): L=0 D=0 => Passed: L=0 D=0 | Act:true |  [DEFAULT]
+Day 28 (2026-02-28): L=0 D=0 => Passed: L=0 D=0 | Act:true |  [DEFAULT]
+------------------------------------------------
+TOTAL CALCULATED PASSED MEALS: 14

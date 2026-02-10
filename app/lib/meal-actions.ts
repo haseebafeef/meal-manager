@@ -590,16 +590,10 @@ export async function getMonthlyMealHistory(year: number, month: number) {
             dailyTotalUsers++;
             const displayName = formatUserName(user);
 
-            // Default Logic: 
-            // - PAST: Default to 1 (Legacy behavior assumption)
-            // - TODAY/FUTURE: Use User Preference
-            let defaultLunch = 1;
-            let defaultDinner = 1;
-
-            if (dayState !== 'PAST') {
-                defaultLunch = user.defaultLunchStatus ? 1 : 0;
-                defaultDinner = user.defaultDinnerStatus ? 1 : 0;
-            }
+            // Fix: Respect user default for PAST days too, avoiding "ghost" meals.
+            // Previously defaulted PAST to 1, causing mismatch with cost calculation.
+            let defaultLunch = user.defaultLunchStatus ? 1 : 0;
+            let defaultDinner = user.defaultDinnerStatus ? 1 : 0;
 
             const lVal = status ? status.lunch : defaultLunch;
             const dVal = status ? status.dinner : defaultDinner;
