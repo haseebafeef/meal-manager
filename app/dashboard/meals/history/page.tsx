@@ -3,7 +3,9 @@ import { redirect } from 'next/navigation';
 import { getMonthlyMealHistory } from '@/app/lib/meal-actions';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
-import { startOfMonth, addMonths, isBefore, isAfter, format } from 'date-fns';
+import clsx from 'clsx';
+import { startOfMonth, addMonths, isBefore, isAfter, format, endOfMonth } from 'date-fns';
+import { RAMADAN_CONFIG } from '@/app/lib/constants';
 
 export default async function MealHistoryPage({
     searchParams,
@@ -55,6 +57,21 @@ export default async function MealHistoryPage({
     const prevLink = `/dashboard/meals/history?month=${prevDate.getMonth() + 1}&year=${prevDate.getFullYear()}`;
     const nextLink = `/dashboard/meals/history?month=${nextDate.getMonth() + 1}&year=${nextDate.getFullYear()}`;
 
+    // Determine if Sahri should be shown
+    // Condition 1: Current month overlaps with configured Ramadan range
+    // Condition 2: Any existing Sahri record in fetching history (for legacy support or out-of-config/user overrides)
+    const monthStart = new Date(currentYear, internalMonthIndex, 1);
+    const monthEnd = endOfMonth(monthStart);
+    const ramadanStart = new Date(RAMADAN_CONFIG.START);
+    const ramadanEnd = new Date(RAMADAN_CONFIG.END);
+
+    // Check overlap: (StartA <= EndB) and (EndA >= StartB)
+    const isRamadanMonth = (monthStart <= ramadanEnd) && (monthEnd >= ramadanStart);
+
+    const hasSahriData = history.some(day => day.sahriCount > 0);
+
+    const showSahri = isRamadanMonth || hasSahriData;
+
     return (
         <main className="min-h-screen bg-gray-50 dark:bg-zinc-900 text-gray-900 dark:text-gray-100 p-4 md:p-6">
             <div className="max-w-4xl mx-auto">
@@ -93,6 +110,7 @@ export default async function MealHistoryPage({
                                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
                                     <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Lunch</th>
                                     <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dinner</th>
+                                    {showSahri && <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sahri</th>}
                                 </tr>
                             </thead>
                             <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-gray-700" suppressHydrationWarning>
@@ -103,7 +121,10 @@ export default async function MealHistoryPage({
                                         </td>
                                         <td className="px-6 py-4 text-center align-top">
                                             <div className="flex flex-col items-center gap-2">
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300">
+                                                <span className={clsx("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium", {
+                                                    "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300": day.lunchCount > 0,
+                                                    "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400": day.lunchCount === 0
+                                                })}>
                                                     {day.lunchCount} / {day.totalUsers}
                                                 </span>
                                                 {day.lunchCount > 0 && (
@@ -115,7 +136,10 @@ export default async function MealHistoryPage({
                                         </td>
                                         <td className="px-6 py-4 text-center align-top">
                                             <div className="flex flex-col items-center gap-2">
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
+                                                <span className={clsx("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium", {
+                                                    "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300": day.dinnerCount > 0,
+                                                    "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400": day.dinnerCount === 0
+                                                })}>
                                                     {day.dinnerCount} / {day.totalUsers}
                                                 </span>
                                                 {day.dinnerCount > 0 && (
@@ -125,6 +149,23 @@ export default async function MealHistoryPage({
                                                 )}
                                             </div>
                                         </td>
+                                        {showSahri && (
+                                            <td className="px-6 py-4 text-center align-top">
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <span className={clsx("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium", {
+                                                        "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300": day.sahriCount > 0,
+                                                        "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400": day.sahriCount === 0
+                                                    })}>
+                                                        {day.sahriCount} / {day.totalUsers}
+                                                    </span>
+                                                    {day.sahriCount > 0 && (
+                                                        <span className="text-xs text-gray-500 dark:text-gray-400 max-w-[200px] leading-relaxed">
+                                                            {day.sahriUsers.join(', ')}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))}
                             </tbody>
