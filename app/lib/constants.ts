@@ -12,7 +12,7 @@ export const CUTOFF_TIMES = {
 
 // Update these dates for next year's Ramadan
 export const RAMADAN_CONFIG = {
-    START: '2026-02-18T00:00:00Z', // Start of Sahri
+    START: '2026-02-17T00:00:00Z', // Start of Sahri
     END: '2026-03-20T23:59:59Z',   // End of Sahri
 };
 
