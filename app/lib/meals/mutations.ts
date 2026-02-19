@@ -183,19 +183,18 @@ export async function updateMealCount(dateStr: string, type: 'lunch' | 'dinner' 
             });
         }
 
-        // Revalidate ALL paths to ensure synchronization
-        // 1. Revalidate the user's own dashboard
+        // Revalidate paths
+        if (isByAdmin) {
+            revalidatePath(`/dashboard/admin/meals/${userId}`);
+            revalidatePath('/dashboard/admin/users');
+        }
+
         revalidatePath('/dashboard/meals');
         revalidatePath('/dashboard/meals/history');
-
-        // 2. Revalidate the specific admin view for this user
-        revalidatePath(`/dashboard/admin/meals/${userId}`);
-
-        // 3. Revalidate the main admin meals list (if applicable)
-        revalidatePath('/dashboard/admin/users');
-
-        // Check Account Status (Auto-off)
-        // Optimization: Pass already fetched settings map
+        
+        // Optimistic sync: Check status but don't block response if possible?
+        // We await it to ensure consistency, but we could make it fire-and-forget if speed is critical.
+        // For now, keeping await as correctness > speed involved with money/status.
         await syncUserStatus(userId, settingsMap);
 
         return { success: true };

@@ -107,6 +107,7 @@ model Transaction {
   @@index([status])
   @@index([requesterId])
   @@index([approverId])
+  @@index([createdAt])
 }
 
 model Expense {
@@ -143,6 +144,7 @@ model MealStatus {
 
   @@unique([date, userId]) // One entry per user per day
   @@index([userId, date])  // Optimize range queries for specific users
+  @@index([date])          // Optimize daily stats queries
 }
 
 model SystemSettings {
