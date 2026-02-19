@@ -266,7 +266,7 @@ export async function attachEmailAndReset(prevState: AuthState | undefined, form
     await sendResetEmailInternal(newEmail);
 
     if (process.env.NODE_ENV === 'development') {
-        console.log(`[DEV] Email ${newEmail} attached to user ${userId} via Recovery Flow`);
+        // console.log(`[DEV] Email ${newEmail} attached to user ${userId} via Recovery Flow`);
     }
 
     return { status: 'EMAIL_SENT', message: "Email attached & Link sent!" };
@@ -301,7 +301,9 @@ async function sendResetEmailInternal(email: string) {
     }
 
     const resetLink = `${baseUrl}/reset-password?token=${token}`;
-    console.log('RESET LINK:', resetLink);
+    if (process.env.NODE_ENV === 'development') {
+        console.log('RESET LINK:', resetLink);
+    }
 
     try {
         if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {

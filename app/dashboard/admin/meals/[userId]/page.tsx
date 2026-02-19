@@ -30,8 +30,10 @@ export default async function AdminManageUserMealsPage({ params }: { params: Pro
                     <h1 className="text-2xl font-bold">Manage Meals: <span className="text-blue-600 dark:text-blue-400">{targetUser.name}</span></h1>
                     <p className="text-sm text-gray-500 mb-2">Admin Mode: Cutoff times do not apply.</p>
                     <DefaultMealToggle
-                        initialLunch={targetUser.defaultLunchStatus}
-                        initialDinner={targetUser.defaultDinnerStatus}
+                        defaultLunch={targetUser.defaultLunchStatus}
+                        defaultDinner={targetUser.defaultDinnerStatus}
+
+                        defaultSahri={targetUser.defaultSahriStatus}
                         targetUserId={targetUser.id}
                     />
                 </div>

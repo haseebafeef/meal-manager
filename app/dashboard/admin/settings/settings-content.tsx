@@ -47,6 +47,13 @@ export default function SettingsContent() {
                             type="time"
                         />
                         <SettingRow
+                            label="Sahri Cutoff Time"
+                            description="Format: HH:MM (24-hour)"
+                            settingKey={SETTINGS_KEYS.SAHRI_CUTOFF}
+                            initialValue={settings[SETTINGS_KEYS.SAHRI_CUTOFF] || '18:00'}
+                            type="time"
+                        />
+                        <SettingRow
                             label="Default Meal Rate"
                             description="Fallback used for calculations"
                             settingKey={SETTINGS_KEYS.MEAL_RATE}

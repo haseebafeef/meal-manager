@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isBefore, isAfter, startOfDay, addMonths, subMonths, startOfWeek, endOfWeek, subDays } from 'date-fns';
 import { updateMealCount } from '@/app/lib/meal-actions';
+import { RAMADAN_CONFIG } from '@/app/lib/constants';
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
@@ -11,9 +12,10 @@ type MealStatus = {
     date: Date;
     lunch: number;
     dinner: number;
+    sahri?: number; // Optional as old records might miss it (though we backfilled via Prisma default?)
 };
 
-export default function MealCalendar({ initialStatuses, targetUserId, adminOverride = false, defaultLunch = false, defaultDinner = false }: { initialStatuses: MealStatus[], targetUserId?: string, adminOverride?: boolean, defaultLunch?: boolean, defaultDinner?: boolean }) {
+export default function MealCalendar({ initialStatuses, targetUserId, adminOverride = false, defaultLunch = false, defaultDinner = false }: { initialStatuses: MealStatus[], targetUserId?: string, adminOverride?: boolean, defaultLunch?: boolean, defaultDinner?: boolean, defaultSahri?: boolean }) {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const router = useRouter();
 
@@ -34,26 +36,29 @@ export default function MealCalendar({ initialStatuses, targetUserId, adminOverr
     });
 
     const [pendingKey, setPendingKey] = useState<string | null>(null);
+    const [, startTransition] = useTransition();
 
-    const handleUpdate = async (date: Date, type: 'lunch' | 'dinner', newCount: number) => {
+    const handleUpdate = (date: Date, type: 'lunch' | 'dinner' | 'sahri', newCount: number) => {
         const key = `${date.toDateString()}-${type}`;
         setPendingKey(key);
 
-        try {
-            // Send YYYY-MM-DD to avoid timezone shifts
-            const result = await updateMealCount(format(date, 'yyyy-MM-dd'), type, newCount, targetUserId);
+        startTransition(async () => {
+            try {
+                // Send YYYY-MM-DD to avoid timezone shifts
+                const result = await updateMealCount(format(date, 'yyyy-MM-dd'), type, newCount, targetUserId);
 
-            if (result.error) {
-                alert(result.error);
-            } else {
-                router.refresh();
+                if (result.error) {
+                    alert(result.error);
+                } else {
+                    router.refresh();
+                }
+            } catch (e) {
+                console.error("Failed to update meal", e);
+                alert("Failed to update meal status.");
+            } finally {
+                setPendingKey(null);
             }
-        } catch (e) {
-            console.error("Failed to update meal", e);
-            alert("Failed to update meal status.");
-        } finally {
-            setPendingKey(null);
-        }
+        });
     };
 
     // Navigation Bounds
@@ -146,9 +151,15 @@ export default function MealCalendar({ initialStatuses, targetUserId, adminOverr
                             // - If no record:
                             //   - PAST: Default to 1 (Legacy ON)
                             //   - FUTURE/TODAY: Use prop value (defaultLunchVal, defaultDinnerVal)
-                            let fallback = { lunch: 1, dinner: 1 };
+
+                            // Sahri Fallback? 
+                            // We don't have defaultSahri prop yet. Assuming 0 or passed prop?
+                            // Let's assume 1 if active date and NO record? 
+                            // Or safer 0?
+                            // Existing logic defaults PAST to 1.
+                            let fallback = { lunch: 1, dinner: 1, sahri: 1 };
                             if (!isPast) {
-                                fallback = { lunch: defaultLunchVal, dinner: defaultDinnerVal };
+                                fallback = { lunch: defaultLunchVal, dinner: defaultDinnerVal, sahri: 0 }; // Default Sahri OFF for now in UI unless we fetch it
                             }
 
                             const status = statusMap.get(dateKey) || fallback;
@@ -162,9 +173,12 @@ export default function MealCalendar({ initialStatuses, targetUserId, adminOverr
                                 ? (isTooOldForAdmin || isFutureLocked)
                                 : (isPast || isFutureLocked);
 
-                            const renderButton = (type: 'lunch' | 'dinner', count: number) => {
+                            const renderButton = (type: 'lunch' | 'dinner' | 'sahri', count: number) => {
                                 const isLunch = type === 'lunch';
-                                const label = isLunch ? 'L' : 'D';
+                                const isSahri = type === 'sahri';
+                                let label = 'D'; // Dinner
+                                if (isLunch) label = 'L';
+                                if (isSahri) label = 'S';
                                 const isOn = count > 0;
                                 const buttonKey = `${dateKey}-${type}`;
                                 const isPending = pendingKey === buttonKey;
@@ -231,16 +245,29 @@ export default function MealCalendar({ initialStatuses, targetUserId, adminOverr
                             };
 
                             return (
-                                <div key={dateKey} className={clsx("min-h-[80px] border rounded-lg p-1 flex flex-col justify-between dark:border-gray-700", {
+                                <div key={dateKey} className={clsx("min-h-[80px] border rounded-lg p-1 flex flex-col gap-1 dark:border-gray-700", {
                                     "bg-gray-50 dark:bg-zinc-900/30 opacity-40 grayscale": !isSameMonth(day, currentMonth),
                                     "bg-white dark:bg-zinc-800": isSameMonth(day, currentMonth),
                                     "border-blue-200 ring-1 ring-blue-200 dark:border-blue-700 dark:ring-blue-700": isToday(day)
                                 })}>
                                     <div className="text-right text-xs text-gray-400">{format(day, 'd')}</div>
 
-                                    <div className="flex flex-col gap-2.5 mt-1">
+                                    <div className="flex flex-col gap-1.5 mt-1">
                                         {renderButton('lunch', status.lunch)}
                                         {renderButton('dinner', status.dinner)}
+
+                                        {/* Sahri (Render Last) */}
+                                        {(() => {
+                                            // Dynamic check using config
+                                            const s = new Date(RAMADAN_CONFIG.START);
+                                            const e = new Date(RAMADAN_CONFIG.END);
+                                            const isActive = day >= s && day <= e;
+
+                                            if (isActive) {
+                                                return renderButton('sahri', status.sahri || 0);
+                                            }
+                                            return null;
+                                        })()}
                                     </div>
                                 </div>
                             );

@@ -1,3 +1,21 @@
+export const MEAL_RATES = {
+    LUNCH: 65,
+    DINNER: 65,
+    SAHRI: 65, // Assumption confirmed by user
+};
+
+export const CUTOFF_TIMES = {
+    LUNCH: '11:00', // 11:00 AM
+    DINNER: '13:00', // 1:00 PM
+    SAHRI: '18:00', // 6:00 PM
+};
+
+// Update these dates for next year's Ramadan
+export const RAMADAN_CONFIG = {
+    START: '2026-02-18T00:00:00Z', // Start of Sahri
+    END: '2026-03-20T23:59:59Z',   // End of Sahri
+};
+
 export const SETTINGS_KEYS = {
     LUNCH_CUTOFF: 'LUNCH_CUTOFF_TIME',
     DINNER_CUTOFF: 'DINNER_CUTOFF_TIME',
@@ -5,12 +23,14 @@ export const SETTINGS_KEYS = {
     PREV_MEAL_RATE: 'PREVIOUS_MEAL_RATE',
     AUTO_OFF_THRESHOLD: 'AUTO_OFF_THRESHOLD',
     REPORT_DELIVERY_TIME: 'REPORT_DELIVERY_TIME',
-    LAST_DELIVERY_ISO: 'LAST_DELIVERY_ISO'
+    LAST_DELIVERY_ISO: 'LAST_DELIVERY_ISO',
+    SAHRI_CUTOFF: 'SAHRI_CUTOFF_TIME'
 };
 
 export const DEFAULT_SETTINGS = {
     [SETTINGS_KEYS.LUNCH_CUTOFF]: '11:00',
     [SETTINGS_KEYS.DINNER_CUTOFF]: '13:00',
+    [SETTINGS_KEYS.SAHRI_CUTOFF]: '18:00',
     [SETTINGS_KEYS.MEAL_RATE]: '70',
     [SETTINGS_KEYS.PREV_MEAL_RATE]: '70',
     [SETTINGS_KEYS.AUTO_OFF_THRESHOLD]: '-500',

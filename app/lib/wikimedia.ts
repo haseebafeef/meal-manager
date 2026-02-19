@@ -33,7 +33,7 @@ export async function fetchRandomBackgroundAction(): Promise<BackgroundImage> {
             "Category:Featured pictures from Wiki Loves Food"
         ];
         const randomCategory = categories[Math.floor(Math.random() * categories.length)];
-        console.log("Fetching background from category:", randomCategory);
+
 
 
         const params = new URLSearchParams({

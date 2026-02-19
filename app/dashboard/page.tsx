@@ -42,7 +42,7 @@ export default async function Dashboard() {
 
     // Parallel Data Fetching
     console.time('dashboard-parallel-fetch');
-    const [summary, userSummary, pendingRequestsCount, mealStats] = await Promise.all([
+    const [summary, userSummary, pendingRequestsCount, mealStats, users] = await Promise.all([
         getSystemSummary(),
         getUserSummary(currentUser.id),
         prisma.transaction.count({
@@ -51,14 +51,13 @@ export default async function Dashboard() {
                 status: 'PENDING'
             }
         }),
-        getDailyMealStats()
+        getDailyMealStats(),
+        // Fetch Users List concurrently
+        prisma.user.findMany({
+            select: { id: true, name: true, email: true }
+        })
     ]);
     console.timeEnd('dashboard-parallel-fetch');
-
-    // Fetch Users List
-    const users = await prisma.user.findMany({
-        select: { id: true, name: true, email: true }
-    });
 
 
     return (
@@ -108,7 +107,7 @@ export default async function Dashboard() {
                             View History
                         </a>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {/* Lunch */}
                         <div className="p-4 rounded-lg bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/20">
                             <div className="flex justify-between items-center mb-2">
@@ -133,6 +132,20 @@ export default async function Dashboard() {
                                 {mealStats.dinner.count > 0 ? mealStats.dinner.users.join(', ') : 'No meals booked.'}
                             </p>
                         </div>
+                        {/* Sahri (Conditional or Always?) - Let's show if count > 0 OR if in range. For simplicity, showing if structure exists (it always does now) */}
+                        {(mealStats.sahri && (
+                            <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/20 md:col-span-2 lg:col-span-1">
+                                <div className="flex justify-between items-center mb-2">
+                                    <h3 className="font-semibold text-purple-800 dark:text-purple-400">Sahri</h3>
+                                    <span className="bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200 text-xs font-bold px-2 py-1 rounded-full">
+                                        {mealStats.sahri.count} Meals
+                                    </span>
+                                </div>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    {mealStats.sahri.count > 0 ? mealStats.sahri.users.join(', ') : 'No meals booked.'}
+                                </p>
+                            </div>
+                        ))}
                     </div>
                 </div >
 

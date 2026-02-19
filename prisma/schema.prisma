@@ -20,8 +20,9 @@ model User {
   status        String      @default("Active") // Active, Inactive, Deleted
   isAdmin       Boolean     @default(false)    // Admin privilege
   nickname      String?     // Optional display name
-  defaultLunchStatus  Boolean @default(false)  // Default Lunch (OFF)
-  defaultDinnerStatus Boolean @default(false)  // Default Dinner (OFF)
+  defaultLunchStatus  Boolean  @default(false)
+  defaultDinnerStatus Boolean  @default(false)
+  defaultSahriStatus  Boolean  @default(false) // Default Sahri (OFF)
   receiveDailyReports Boolean @default(false)  // Admin controlled flag for notifications
   tag                 String  @default("5B")   // User group tag for reports
 
@@ -136,8 +137,9 @@ model MealStatus {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   
-  lunch     Int      @default(1) // Default is ON (1 meal)
-  dinner    Int      @default(1) // Default is ON (1 meal)
+  lunch     Int @default(0) // 0=Off, 1=On, 2+=Guest
+  dinner    Int @default(0)
+  sahri     Int @default(0) // New: Sahri Count
 
   @@unique([date, userId]) // One entry per user per day
   @@index([userId, date])  // Optimize range queries for specific users

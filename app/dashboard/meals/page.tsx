@@ -56,8 +56,10 @@ export default async function MealsPage() {
                     </div>
                     {/* Toggle */}
                     <DefaultMealToggle
-                        initialLunch={currentUser.defaultLunchStatus}
-                        initialDinner={currentUser.defaultDinnerStatus}
+                        defaultLunch={currentUser.defaultLunchStatus}
+                        defaultDinner={currentUser.defaultDinnerStatus}
+
+                        defaultSahri={currentUser.defaultSahriStatus}
                     />
                 </div>
 
@@ -77,6 +79,8 @@ export default async function MealsPage() {
                     initialStatuses={statuses}
                     defaultLunch={currentUser.defaultLunchStatus}
                     defaultDinner={currentUser.defaultDinnerStatus}
+
+                    defaultSahri={currentUser.defaultSahriStatus}
                 />
             </div>
         </main>

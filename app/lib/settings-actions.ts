@@ -1,28 +1,31 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { auth } from '@/auth';
 
 import { prisma } from '@/app/lib/prisma';
 
 import { DEFAULT_SETTINGS } from './constants';
 
-export async function getSystemSettings() {
-    const session = await auth();
-    if (!session?.user) return null;
+import { unstable_cache } from 'next/cache';
 
-    // Fetch all settings
-    const settings = await prisma.systemSettings.findMany();
+export const getSystemSettings = unstable_cache(
+    async () => {
+        // Fetch all settings
+        const settings = await prisma.systemSettings.findMany();
 
-    // Map to object for easier access
-    const settingsMap: Record<string, string> = {};
-    settings.forEach(s => settingsMap[s.key] = s.value);
+        // Map to object for easier access
+        const settingsMap: Record<string, string> = {};
+        settings.forEach(s => settingsMap[s.key] = s.value);
 
-    // Ensure defaults exist for known keys
-    const finalSettings = { ...DEFAULT_SETTINGS, ...settingsMap };
+        // Ensure defaults exist for known keys
+        const finalSettings = { ...DEFAULT_SETTINGS, ...settingsMap };
 
-    return finalSettings;
-}
+        return finalSettings;
+    },
+    ['system-settings'], // Key parts for the cache
+    { tags: ['settings'] } // Cache tag for revalidation
+);
 
 export async function updateSystemSetting(key: string, value: string) {
     const session = await auth();
@@ -40,7 +43,10 @@ export async function updateSystemSetting(key: string, value: string) {
 
         revalidatePath('/dashboard/admin/settings');
         revalidatePath('/dashboard/meals');
+        // Invalidate the cache tag
+        revalidateTag('settings', 'default');
         return { message: "Setting updated successfully" };
+
     } catch (error) {
         console.error("Failed to update setting:", error);
         return { message: "Failed to update setting" };

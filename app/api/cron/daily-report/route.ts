@@ -75,6 +75,12 @@ export async function GET(request: Request) {
             });
         }
 
+        // 0.5 Systemic Fix: Lock Yesterday's Meals
+        // Ensure that days passing without records get stamped with current defaults.
+        const { lockYesterdayMeals } = await import('@/app/lib/cron-service');
+        const lockResult = await lockYesterdayMeals();
+        console.log(`[Cron] History Lock: Created ${lockResult.created} records for ${lockResult.date.toISOString().split('T')[0]}`);
+
         // 1. Calculate Stats & Fetch Data
         const today = now;
 
