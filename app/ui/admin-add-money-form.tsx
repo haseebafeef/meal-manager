@@ -85,6 +85,21 @@ export default function AdminAddMoneyForm({ users }: { users: { id: string, name
                 </div>
             </div>
 
+            {/* Note */}
+            <div>
+                <label className="mb-2 block text-xs font-medium text-gray-900 dark:text-gray-300" htmlFor="admin-note">
+                    Note (Optional)
+                </label>
+                <div className="relative">
+                    <input
+                        id="admin-note"
+                        name="note"
+                        placeholder="Add a note..."
+                        className="peer block w-full rounded-md border border-gray-200 dark:border-gray-600 py-[9px] px-3 text-base outline-2 placeholder:text-gray-500 text-gray-900 dark:text-gray-100 dark:bg-zinc-800"
+                    />
+                </div>
+            </div>
+
             <SubmitButton />
 
             {success && <p className="text-sm text-green-600 font-medium">Added successfully!</p>}

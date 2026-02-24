@@ -94,6 +94,19 @@ export default function AddBalanceForm({ users }: { users: { id: string, name: s
                     </div>
                 </div>
 
+                {/* Note */}
+                <div className="mt-4">
+                    <label className="mb-3 block text-xs font-medium text-gray-900 dark:text-gray-300" htmlFor="note">Note (Optional)</label>
+                    <div className="relative">
+                        <input
+                            className="peer block w-full rounded-md border border-gray-200 dark:border-gray-600 py-[9px] px-3 text-base outline-2 placeholder:text-gray-500 text-gray-900 dark:text-gray-100 dark:bg-zinc-800"
+                            id="note"
+                            name="note"
+                            placeholder="Add a note..."
+                        />
+                    </div>
+                </div>
+
                 <SubmitButton />
 
                 <div className="flex h-8 items-end space-x-1" aria-live="polite" aria-atomic="true">

@@ -103,6 +103,7 @@ model Transaction {
   
   paymentMethod String? // CASH, BKASH, NAGAD, BANK
   description   String?
+  note          String?
 
   @@index([status])
   @@index([requesterId])

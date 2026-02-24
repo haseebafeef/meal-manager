@@ -11,12 +11,14 @@ const TransactionSchema = z.object({
     amount: z.coerce.number().gt(0, "Amount must be greater than zero"),
     receiverId: z.string().min(1, "Please select a receiver"),
     paymentMethod: z.string().min(1, "Please select a payment method"),
+    note: z.string().optional(),
 });
 
 const AdminAddMoneySchema = z.object({
     userId: z.string(),
     amount: z.coerce.number().refine((val) => val !== 0, "Amount cannot be zero"),
     paymentMethod: z.string().optional(),
+    note: z.string().optional(),
 });
 
 export async function createBalanceRequest(prevState: { message: string } | undefined, formData: FormData) {
@@ -37,13 +39,14 @@ export async function createBalanceRequest(prevState: { message: string } | unde
         amount: formData.get('amount'),
         receiverId: formData.get('receiverId'),
         paymentMethod: formData.get('paymentMethod'),
+        note: formData.get('note'),
     });
 
     if (!validatedFields.success) {
         return { message: 'Invalid input. Please check all fields.' };
     }
 
-    const { amount, receiverId, paymentMethod } = validatedFields.data;
+    const { amount, receiverId, paymentMethod, note } = validatedFields.data;
 
     // Fetch receiver to name them in description
     const receiver = await prisma.user.findUnique({
@@ -60,7 +63,8 @@ export async function createBalanceRequest(prevState: { message: string } | unde
                 approverId: receiverId,
                 paymentMethod,
                 status: 'PENDING',
-                description: `Sent to ${receiver.name} (via ${paymentMethod})`
+                description: `Sent to ${receiver.name} (via ${paymentMethod})`,
+                note: note || null,
             },
         });
     } catch (error) {
@@ -90,11 +94,12 @@ export async function addMoneyByAdmin(prevState: string | undefined, formData: F
         userId: formData.get('userId'),
         amount: formData.get('amount'),
         paymentMethod: formData.get('paymentMethod'),
+        note: formData.get('note'),
     });
 
     if (!validated.success) return "Invalid input data.";
 
-    const { userId, amount, paymentMethod } = validated.data;
+    const { userId, amount, paymentMethod, note } = validated.data;
 
     const targetUser = await prisma.user.findUnique({ where: { id: userId } });
     if (!targetUser) return "User not found.";
@@ -114,7 +119,8 @@ export async function addMoneyByAdmin(prevState: string | undefined, formData: F
                     approverId: adminUser.id, // The admin adding it
                     status: 'APPROVED',
                     paymentMethod: paymentMethod || 'CASH',
-                    description: description
+                    description: description,
+                    note: note || null,
                 }
             });
 
