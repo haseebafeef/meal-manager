@@ -601,7 +601,7 @@ export async function getMonthlySystemSummary(year: number, month: number) {
     const mealHistory = await getMonthlyMealHistory(year, month - 1);
 
     // Sum only PASSED meals for history/summary purposes
-    const totalMeals = mealHistory.reduce((sum, day) => sum + (day.passedLunchCount || 0) + (day.passedDinnerCount || 0), 0);
+    const totalMeals = mealHistory.reduce((sum, day) => sum + (day.passedLunchCount || 0) + (day.passedDinnerCount || 0) + (day.passedSahriCount || 0), 0);
 
     return {
         previousMonthBalance: prevBalance,
