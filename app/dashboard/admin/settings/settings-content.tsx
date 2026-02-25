@@ -24,7 +24,7 @@ export default function SettingsContent() {
 
             <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
-                    <thead className="bg-gray-100 dark:bg-zinc-900 text-gray-600 dark:text-gray-400 uppercase text-xs">
+                    <thead className="bg-gray-100 dark:bg-zinc-900 text-gray-600 dark:text-gray-400 text-xs">
                         <tr>
                             <th className="px-4 py-3 rounded-l-lg">Configuration Name</th>
                             <th className="px-4 py-3">Value</th>

@@ -67,7 +67,7 @@ export default async function HistoryPage(props: {
         <main className="flex min-h-screen flex-col p-4 md:p-6 bg-gray-50 dark:bg-zinc-900 text-gray-900 dark:text-gray-100 transition-colors">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <h1 className="text-2xl font-bold">Global History & Balances</h1>
-                <div className="flex items-center gap-2 w-full md:w-auto flex-wrap">
+                <div className="flex items-center gap-2 w-full md:w-auto flex-wrap justify-end">
                     <ThemeToggle />
                     <Link href="/dashboard" className="btn-secondary flex-1 md:flex-none text-center">Dashboard</Link>
                     <UserDropdown user={currentUser} />
@@ -75,24 +75,24 @@ export default async function HistoryPage(props: {
             </div>
 
             {/* Current User Balances Section */}
-            <div className="mb-8 rounded-xl border bg-white dark:bg-zinc-800 p-6 shadow-sm overflow-x-auto border-gray-100 dark:border-gray-700">
-                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+            <div className="mb-8 card-panel overflow-x-auto">
+                <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
                     {currentUser.isAdmin ? "Current User Balances" : "Current User Balance"}
                 </h2>
                 <table className="min-w-full text-gray-900 dark:text-gray-100">
                     <thead className="rounded-lg text-left text-sm font-normal">
                         <tr>
-                            <th scope="col" className="px-4 py-3 font-medium sm:pl-6 text-gray-500 dark:text-gray-400">User</th>
-                            <th scope="col" className="px-3 py-3 font-medium text-gray-500 dark:text-gray-400">Net Balance</th>
+                            <th scope="col" className="px-4 py-3 label-compact sm:pl-6">User</th>
+                            <th scope="col" className="px-3 py-3 label-compact">Net Balance</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-100 dark:divide-gray-700">
+                    <tbody className="bg-white/50 dark:bg-zinc-800/40 divide-y divide-gray-100 dark:divide-gray-700/50">
                         {(currentUser.isAdmin ? users : users.filter(u => u.id === currentUser.id)).map((u) => {
                             const summary = userSummaries.get(u.id);
                             const netBalance = summary ? summary.remainingBalance : 0;
 
                             return (
-                                <tr key={u.id} className="w-full py-3 text-sm hover:bg-gray-50 dark:hover:bg-zinc-700/50 transition-colors">
+                                <tr key={u.id} className="w-full py-3 text-sm hover:bg-gray-50/50 dark:hover:bg-zinc-700/30 transition-colors">
                                     <td className="whitespace-nowrap py-3 pl-6 pr-3 font-medium">{u.name}</td>
                                     <td className={clsx(
                                         "whitespace-nowrap px-3 py-3 font-bold",
@@ -108,21 +108,21 @@ export default async function HistoryPage(props: {
             </div>
 
             {/* Global Transactions Section */}
-            <div className="rounded-xl border bg-white dark:bg-zinc-800 p-6 shadow-sm overflow-x-auto border-gray-100 dark:border-gray-700">
-                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">All Transactions</h2>
+            <div className="card-panel overflow-x-auto">
+                <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">All Transactions</h2>
                 <table className="min-w-full text-gray-900 dark:text-gray-100">
                     <thead className="rounded-lg text-left text-sm font-normal">
                         <tr>
-                            <th scope="col" className="px-4 py-3 font-medium sm:pl-6 text-gray-500 dark:text-gray-400">Sender</th>
-                            <th scope="col" className="px-3 py-3 font-medium text-gray-500 dark:text-gray-400">Description</th>
-                            <th scope="col" className="px-3 py-3 font-medium text-gray-500 dark:text-gray-400">Amount</th>
-                            <th scope="col" className="px-3 py-3 font-medium text-gray-500 dark:text-gray-400">Time</th>
-                            <th scope="col" className="px-3 py-3 font-medium text-gray-500 dark:text-gray-400">Receiver</th>
-                            <th scope="col" className="px-3 py-3 font-medium text-gray-500 dark:text-gray-400">Note</th>
-                            <th scope="col" className="px-3 py-3 font-medium text-gray-500 dark:text-gray-400">Status</th>
+                            <th scope="col" className="px-4 py-3 label-compact sm:pl-6">Sender</th>
+                            <th scope="col" className="px-3 py-3 label-compact">Description</th>
+                            <th scope="col" className="px-3 py-3 label-compact">Amount</th>
+                            <th scope="col" className="px-3 py-3 label-compact">Time</th>
+                            <th scope="col" className="px-3 py-3 label-compact">Receiver</th>
+                            <th scope="col" className="px-3 py-3 label-compact">Note</th>
+                            <th scope="col" className="px-3 py-3 label-compact">Status</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-100 dark:divide-gray-700">
+                    <tbody className="bg-white/50 dark:bg-zinc-800/40 divide-y divide-gray-100 dark:divide-gray-700/50">
                         {transactions.map((tx) => {
                             const isApprover = tx.approverId === currentUser.id;
                             const isRequester = tx.requesterId === currentUser.id;

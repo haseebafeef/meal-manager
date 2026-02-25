@@ -47,7 +47,7 @@ export default function DefaultMealToggle({ defaultLunch, defaultDinner, default
 
     return (
         <div className="flex flex-col gap-3 p-4 bg-white dark:bg-zinc-800 rounded-lg shadow-sm border border-gray-100 dark:border-zinc-700">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Default Preferences</h3>
+            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 tracking-wider">Default Preferences</h3>
 
             <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">

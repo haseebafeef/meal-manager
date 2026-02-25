@@ -77,43 +77,43 @@ export default async function MealHistoryPage({
             <div className="max-w-4xl mx-auto">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-bold">Meal History</h1>
-                    <div className="flex items-center gap-4 bg-white dark:bg-zinc-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                    <div className="flex items-center gap-4 bg-white/80 dark:bg-black/60 backdrop-blur-sm p-2 rounded-xl border border-white/20 dark:border-white/10 shadow-sm">
                         {showPrev ? (
-                            <Link href={prevLink} className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded-full transition-colors">
+                            <Link href={prevLink} className="p-2 hover:bg-gray-100/50 dark:hover:bg-zinc-800 rounded-full transition-colors">
                                 <ChevronLeftIcon className="w-5 h-5" />
                             </Link>
                         ) : (
-                            <span className="p-2 text-gray-300 dark:text-zinc-600 cursor-not-allowed">
+                            <span className="p-2 text-gray-300 dark:text-zinc-700 cursor-not-allowed">
                                 <ChevronLeftIcon className="w-5 h-5" />
                             </span>
                         )}
 
-                        <span className="font-semibold min-w-[140px] text-center">{monthName}</span>
+                        <span className="font-bold min-w-[140px] text-center">{monthName}</span>
 
                         {showNext ? (
-                            <Link href={nextLink} className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded-full transition-colors">
+                            <Link href={nextLink} className="p-2 hover:bg-gray-100/50 dark:hover:bg-zinc-800 rounded-full transition-colors">
                                 <ChevronRightIcon className="w-5 h-5" />
                             </Link>
                         ) : (
-                            <span className="p-2 text-gray-300 dark:text-zinc-600 cursor-not-allowed">
+                            <span className="p-2 text-gray-300 dark:text-zinc-700 cursor-not-allowed">
                                 <ChevronRightIcon className="w-5 h-5" />
                             </span>
                         )}
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="card-panel overflow-hidden p-0">
                     <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-zinc-900">
+                        <table className="min-w-full divide-y divide-gray-100 dark:divide-gray-700/50">
+                            <thead className="bg-gray-100 dark:bg-zinc-900 text-gray-600 dark:text-gray-400 text-xs tracking-wider border-b-2 border-gray-200 dark:border-gray-700 font-medium">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
-                                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Lunch</th>
-                                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dinner</th>
-                                    {showSahri && <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sahri</th>}
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 tracking-wider">Date</th>
+                                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 tracking-wider">Lunch</th>
+                                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 tracking-wider">Dinner</th>
+                                    {showSahri && <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 tracking-wider">Sahri</th>}
                                 </tr>
                             </thead>
-                            <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-gray-700" suppressHydrationWarning>
+                            <tbody className="bg-white/50 dark:bg-zinc-800/40 divide-y divide-gray-100 dark:divide-gray-700/50" suppressHydrationWarning>
                                 {history.map((day) => (
                                     <tr key={day.date.toISOString()} className="hover:bg-gray-50 dark:hover:bg-zinc-700/50">
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">

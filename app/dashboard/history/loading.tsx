@@ -13,11 +13,11 @@ export default function Loading() {
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                         <thead className="bg-gray-50 dark:bg-zinc-700">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">User</th>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Prev. Balance</th>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Credit</th>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Meal Cost</th>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Net Balance</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 tracking-wider">User</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 tracking-wider">Prev. Balance</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 tracking-wider">Credit</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 tracking-wider">Meal Cost</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 tracking-wider">Net Balance</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-gray-700">

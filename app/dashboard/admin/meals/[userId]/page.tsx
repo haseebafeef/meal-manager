@@ -37,7 +37,7 @@ export default async function AdminManageUserMealsPage({ params }: { params: Pro
                         targetUserId={targetUser.id}
                     />
                 </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2 w-full md:w-auto flex-wrap justify-end">
                     <ThemeToggle />
                     <a href="/dashboard/admin/users" className="btn-secondary">Back to Users</a>
                 </div>

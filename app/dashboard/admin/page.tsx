@@ -56,7 +56,7 @@ export default async function AdminHubPage() {
         <main className="min-h-screen bg-gray-50 dark:bg-zinc-900 text-gray-900 dark:text-gray-100 p-4 md:p-6 transition-colors duration-300">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">Admin Management</h1>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full md:w-auto flex-wrap justify-end">
                     <ThemeToggle />
                     <Link href="/dashboard" className="btn-secondary">Back to Dashboard</Link>
                     <UserDropdown user={currentUser} />
@@ -70,13 +70,13 @@ export default async function AdminHubPage() {
                     <Link
                         key={link.title}
                         href={link.href}
-                        className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow flex flex-col gap-3 group"
+                        className="card-panel flex flex-col gap-3 group !p-6"
                     >
                         <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${link.bg}`}>
                             <link.icon className={`w-6 h-6 ${link.color}`} />
                         </div>
                         <div>
-                            <h3 className="font-semibold text-lg group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                            <h3 className="font-bold text-lg group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                                 {link.title}
                             </h3>
                             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">

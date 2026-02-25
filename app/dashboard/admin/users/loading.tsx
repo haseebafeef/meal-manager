@@ -15,7 +15,7 @@ export default function Loading() {
             <div className="card-panel overflow-hidden bg-white dark:bg-zinc-800 rounded-xl border border-gray-100 dark:border-gray-700">
                 <div className="overflow-x-auto">
                     <table className="min-w-full text-left text-sm whitespace-nowrap">
-                        <thead className="uppercase tracking-wider border-b-2 border-gray-200 dark:border-gray-700 font-medium">
+                        <thead className="tracking-wider border-b-2 border-gray-200 dark:border-gray-700 font-medium">
                             <tr>
                                 <th scope="col" className="px-4 py-3"><Skeleton className="h-4 w-12" /></th>
                                 <th scope="col" className="px-4 py-3"><Skeleton className="h-4 w-12" /></th>

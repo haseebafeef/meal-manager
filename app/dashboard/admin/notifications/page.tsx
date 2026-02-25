@@ -24,7 +24,7 @@ export default async function AdminNotificationsPage() {
             <div className="max-w-4xl mx-auto">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-bold">Notification Settings</h1>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 w-full md:w-auto flex-wrap justify-end">
                         <ThemeToggle />
                         <Link href="/dashboard/admin" className="btn-secondary">Back to Admin</Link>
                     </div>

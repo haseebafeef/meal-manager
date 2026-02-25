@@ -52,7 +52,7 @@ export default async function ExpensesPage(props: {
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap w-full md:w-auto justify-end">
                         <Link href="/dashboard" className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-zinc-800 dark:text-gray-300 dark:border-zinc-700 dark:hover:bg-zinc-700 transition-colors">
                             Dashboard
                         </Link>
@@ -63,29 +63,29 @@ export default async function ExpensesPage(props: {
 
                 {/* Controls & Stats */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="md:col-span-2 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 p-1 flex items-center">
+                    <div className="md:col-span-2 card-panel !p-1 flex items-center">
                         <MonthSelector months={months} />
                     </div>
 
-                    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl shadow-lg p-6 text-white flex items-center justify-between">
+                    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl shadow-md p-5 text-white flex items-center justify-between">
                         <div>
-                            <p className="text-blue-100 text-sm font-medium">Total Spent</p>
-                            <h2 className="text-3xl font-bold mt-1">৳ {total.toLocaleString('en-US', { minimumFractionDigits: 2 })}</h2>
+                            <p className="text-blue-100/80 text-[10px] font-bold tracking-wider">Total Spent</p>
+                            <h2 className="text-2xl md:text-3xl font-bold mt-0.5">৳ {total.toLocaleString('en-US', { minimumFractionDigits: 2 })}</h2>
                         </div>
-                        <div className="p-3 bg-white/20 rounded-full backdrop-blur-sm">
-                            <BanknotesIcon className="w-8 h-8 text-white" />
+                        <div className="p-2.5 bg-white/20 rounded-full backdrop-blur-sm">
+                            <BanknotesIcon className="w-6 h-6 md:w-8 md:h-8 text-white" />
                         </div>
                     </div>
                 </div>
 
                 {/* Content Area */}
-                <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden">
+                <div className="card-panel !p-0 overflow-hidden">
                     {expenses.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-20 text-center">
                             <div className="p-4 bg-gray-100 dark:bg-zinc-800/50 rounded-full mb-4">
                                 <DocumentTextIcon className="w-8 h-8 text-gray-400" />
                             </div>
-                            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-200">No expenses found</h3>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-200">No expenses found</h3>
                             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                                 No records available for {currentMonthStr}.
                             </p>
@@ -93,14 +93,14 @@ export default async function ExpensesPage(props: {
                     ) : (
                         <>
                             {/* Mobile View (Cards) */}
-                            <div className="md:hidden divide-y divide-gray-100 dark:divide-zinc-800">
+                            <div className="md:hidden divide-y divide-gray-100 dark:divide-zinc-800/50">
                                 {expenses.map((expense) => (
                                     <div key={expense.id} className="p-4 space-y-3">
                                         <div className="flex justify-between items-start">
                                             <div className="flex items-center gap-3">
                                                 <div>
-                                                    <p className="font-medium text-gray-900 dark:text-white">{expense.description}</p>
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                                    <p className="font-bold text-gray-900 dark:text-white">{expense.description}</p>
+                                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                                         {expense.date.toLocaleDateString("en-GB", { timeZone: "Asia/Dhaka", day: 'numeric', month: 'short' }) + ', ' + expense.date.toLocaleTimeString("en-US", { timeZone: "Asia/Dhaka", hour: 'numeric', minute: '2-digit' })}
                                                     </p>
                                                 </div>
@@ -111,17 +111,16 @@ export default async function ExpensesPage(props: {
                                         <div className="flex items-center justify-between text-sm pt-2">
                                             <div className="text-gray-500 dark:text-gray-400">
                                                 {expense.volume && (
-                                                    <span className="bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded-md text-xs">
+                                                    <span className="bg-gray-100 dark:bg-zinc-800/50 px-2 py-0.5 rounded text-[10px] font-bold">
                                                         {expense.volume} {expense.unitPrice ? `@ ${expense.unitPrice}` : ''}
                                                     </span>
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                {/* Mobile Purchaser Name */}
-                                                <span className="text-xs text-gray-400">by {expense.purchaserName}</span>
+                                                <span className="text-[10px] font-medium text-gray-400">by {expense.purchaserName}</span>
                                                 {expense.imagePath && (
-                                                    <a href={expense.imagePath} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 dark:text-blue-400 text-xs hover:underline">
-                                                        <PhotoIcon className="w-4 h-4" />
+                                                    <a href={expense.imagePath} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 dark:text-blue-400 text-[10px] font-bold hover:underline">
+                                                        <PhotoIcon className="w-3.5 h-3.5" />
                                                         Memo
                                                     </a>
                                                 )}
@@ -134,19 +133,19 @@ export default async function ExpensesPage(props: {
                             {/* Desktop View (Table) */}
                             <div className="hidden md:block overflow-x-auto">
                                 <table className="w-full text-left text-sm text-gray-500 dark:text-gray-400">
-                                    <thead className="bg-gray-50 dark:bg-zinc-800/50 text-gray-700 dark:text-gray-300 uppercase text-xs tracking-wider">
+                                    <thead className="bg-gray-50/50 dark:bg-zinc-900/50">
                                         <tr>
-                                            <th scope="col" className="px-6 py-4 font-semibold">Date</th>
-                                            <th scope="col" className="px-6 py-4 font-semibold">Item / Description</th>
-                                            <th scope="col" className="px-3 py-4 font-semibold">Vol</th>
-                                            <th scope="col" className="px-3 py-4 font-semibold text-center">Unit</th>
-                                            <th scope="col" className="px-3 py-4 font-semibold text-right">Rate / Unit</th>
-                                            <th scope="col" className="px-6 py-4 font-semibold text-right">Total</th>
-                                            <th scope="col" className="px-6 py-4 font-semibold">Purchaser</th>
-                                            <th scope="col" className="px-6 py-4 font-semibold text-center">Memo</th>
+                                            <th scope="col" className="px-6 py-4 label-compact">Date</th>
+                                            <th scope="col" className="px-6 py-4 label-compact">Item / Description</th>
+                                            <th scope="col" className="px-3 py-4 label-compact">Vol</th>
+                                            <th scope="col" className="px-3 py-4 label-compact text-center">Unit</th>
+                                            <th scope="col" className="px-3 py-4 label-compact text-right">Rate / Unit</th>
+                                            <th scope="col" className="px-6 py-4 label-compact text-right">Total</th>
+                                            <th scope="col" className="px-6 py-4 label-compact">Purchaser</th>
+                                            <th scope="col" className="px-6 py-4 label-compact text-center">Memo</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-200 dark:divide-zinc-800">
+                                    <tbody className="divide-y divide-gray-100 dark:divide-zinc-800/50">
                                         {expenses.map((expense) => (
                                             <tr key={expense.id} className="hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
                                                 <td className="px-6 py-4 whitespace-nowrap">

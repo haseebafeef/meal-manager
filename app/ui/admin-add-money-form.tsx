@@ -20,17 +20,17 @@ export default function AdminAddMoneyForm({ users }: { users: { id: string, name
     }, [message]);
 
     return (
-        <form action={dispatch} className="space-y-4">
+        <form action={dispatch} className="space-y-2 md:space-y-2.5">
             {/* User Selection */}
             <div>
-                <label className="mb-2 block text-xs font-medium text-gray-900 dark:text-gray-300" htmlFor="admin-target-user">
+                <label className="label-compact block mb-1" htmlFor="admin-target-user">
                     Select User
                 </label>
                 <div className="relative">
                     <select
                         id="admin-target-user"
                         name="userId"
-                        className="peer block w-full rounded-md border border-gray-200 dark:border-gray-600 py-[9px] pl-10 text-base outline-2 placeholder:text-gray-500 text-gray-900 dark:text-gray-100 dark:bg-zinc-800"
+                        className="peer input-compact pl-10"
                         required
                         defaultValue=""
                     >
@@ -41,13 +41,13 @@ export default function AdminAddMoneyForm({ users }: { users: { id: string, name
                             </option>
                         ))}
                     </select>
-                    <UserIcon className="pointer-events-none absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-500 peer-focus:text-gray-900" />
+                    <UserIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 peer-focus:text-gray-900" />
                 </div>
             </div>
 
             {/* Amount */}
             <div>
-                <label className="mb-2 block text-xs font-medium text-gray-900 dark:text-gray-300" htmlFor="admin-amount">
+                <label className="label-compact block mb-1" htmlFor="admin-amount">
                     Amount
                 </label>
                 <div className="relative">
@@ -57,23 +57,23 @@ export default function AdminAddMoneyForm({ users }: { users: { id: string, name
                         type="number"
                         step="0.01"
                         placeholder="0.00"
-                        className="peer block w-full rounded-md border border-gray-200 dark:border-gray-600 py-[9px] pl-10 text-base outline-2 placeholder:text-gray-500 text-gray-900 dark:text-gray-100 dark:bg-zinc-800"
+                        className="peer input-compact pl-10"
                         required
                     />
-                    <CurrencyDollarIcon className="pointer-events-none absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-500 peer-focus:text-gray-900" />
+                    <CurrencyDollarIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 peer-focus:text-gray-900" />
                 </div>
             </div>
 
             {/* Payment Method */}
             <div>
-                <label className="mb-2 block text-xs font-medium text-gray-900 dark:text-gray-300" htmlFor="admin-payment-method">
+                <label className="label-compact block mb-1" htmlFor="admin-payment-method">
                     Payment Method
                 </label>
                 <div className="relative">
                     <select
                         id="admin-payment-method"
                         name="paymentMethod"
-                        className="peer block w-full rounded-md border border-gray-200 dark:border-gray-600 py-[9px] pl-10 text-base outline-2 placeholder:text-gray-500 text-gray-900 dark:text-gray-100 dark:bg-zinc-800"
+                        className="peer input-compact pl-10"
                         defaultValue="Cash"
                     >
                         <option value="Cash">Cash</option>
@@ -81,13 +81,13 @@ export default function AdminAddMoneyForm({ users }: { users: { id: string, name
                         <option value="Nagad">Nagad</option>
                         <option value="Bank">Bank</option>
                     </select>
-                    <BanknotesIcon className="pointer-events-none absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-500 peer-focus:text-gray-900" />
+                    <BanknotesIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 peer-focus:text-gray-900" />
                 </div>
             </div>
 
             {/* Note */}
             <div>
-                <label className="mb-2 block text-xs font-medium text-gray-900 dark:text-gray-300" htmlFor="admin-note">
+                <label className="label-compact block mb-1" htmlFor="admin-note">
                     Note (Optional)
                 </label>
                 <div className="relative">
@@ -95,7 +95,7 @@ export default function AdminAddMoneyForm({ users }: { users: { id: string, name
                         id="admin-note"
                         name="note"
                         placeholder="Add a note..."
-                        className="peer block w-full rounded-md border border-gray-200 dark:border-gray-600 py-[9px] px-3 text-base outline-2 placeholder:text-gray-500 text-gray-900 dark:text-gray-100 dark:bg-zinc-800"
+                        className="peer input-compact px-3"
                     />
                 </div>
             </div>

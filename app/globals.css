@@ -36,9 +36,24 @@ body {
 @layer components {
   .btn-secondary {
     @apply px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-zinc-700 shadow-sm whitespace-nowrap transition-colors;
+    /* Custom Card Panel */
   }
 
   .card-panel {
-    @apply bg-white/80 dark:bg-black/60 backdrop-blur-md p-6 rounded-xl shadow-lg border border-white/20 dark:border-white/10 transition-all hover:shadow-xl;
+    @apply bg-white/80 dark:bg-black/60 backdrop-blur-md p-3 md:p-5 rounded-xl shadow-sm border border-white/20 dark:border-white/10 transition-all hover:shadow-md;
+  }
+
+  /* Compact Input Styles */
+  .input-compact {
+    @apply block w-full rounded border border-gray-200 dark:border-gray-600/40 py-1 md:py-1.5 text-xs md:text-sm outline-2 placeholder:text-gray-500 text-gray-900 dark:text-gray-100 dark:bg-zinc-800/30 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-colors;
+  }
+
+  .input-compact option {
+    @apply dark:bg-zinc-900 dark:text-white;
+  }
+
+  /* Compact Label Styles */
+  .label-compact {
+    @apply text-[10px] md:text-[11px] font-bold tracking-wider text-gray-500 dark:text-gray-400 transition-colors;
   }
 }

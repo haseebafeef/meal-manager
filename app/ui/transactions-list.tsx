@@ -38,18 +38,18 @@ export default async function TransactionsList() {
 
     return (
         <div className="mt-6 flow-root">
-            <div className="inline-block min-w-full align-middle">
-                <div className="rounded-lg bg-gray-50 p-2 md:pt-0 overflow-x-auto">
-                    <table className="min-w-full text-gray-900 dark:text-gray-100">
-                        <thead className="rounded-lg text-left text-sm font-normal">
+            <div className="block min-w-full align-middle">
+                <div className="rounded-lg bg-gray-50/50 dark:bg-zinc-800/30 p-2 md:pt-0 overflow-x-auto border border-gray-100 dark:border-zinc-700/50">
+                    <table className="min-w-full text-gray-900 dark:text-gray-100" style={{ minWidth: '700px' }}>
+                        <thead className="border-b border-gray-100 dark:border-gray-700/50">
                             <tr>
-                                <th scope="col" className="px-2 py-3 md:px-4 md:py-5 text-xs md:text-sm font-medium sm:pl-6 text-gray-500 dark:text-gray-400">Date</th>
-                                <th scope="col" className="px-2 py-3 md:px-3 md:py-5 text-xs md:text-sm font-medium text-gray-500 dark:text-gray-400">Description</th>
-                                <th scope="col" className="px-2 py-3 md:px-3 md:py-5 text-xs md:text-sm font-medium text-gray-500 dark:text-gray-400">Amount</th>
-                                <th scope="col" className="px-2 py-3 md:px-3 md:py-5 text-xs md:text-sm font-medium text-gray-500 dark:text-gray-400">Status</th>
+                                <th scope="col" className="pl-4 md:pl-6 pr-3 py-3 text-left text-[11px] md:text-sm font-bold tracking-wider text-gray-500 dark:text-gray-400">Date</th>
+                                <th scope="col" className="w-full px-3 py-3 text-left text-[11px] md:text-sm font-bold tracking-wider text-gray-500 dark:text-gray-400">Description</th>
+                                <th scope="col" className="px-3 py-3 text-right text-[11px] md:text-sm font-bold tracking-wider text-gray-500 dark:text-gray-400">Amount</th>
+                                <th scope="col" className="pl-3 pr-4 md:pr-6 py-3 text-left text-[11px] md:text-sm font-bold tracking-wider text-gray-500 dark:text-gray-400">Status</th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        <tbody className="bg-white/50 dark:bg-zinc-800/40 divide-y divide-gray-100 dark:divide-gray-700/50">
                             {transactions.map((tx) => {
                                 const isApprover = tx.approverId === user.id;
                                 const isRequester = tx.requesterId === user.id;
@@ -57,7 +57,7 @@ export default async function TransactionsList() {
 
                                 return (
                                     <tr key={tx.id} className={clsx(
-                                        "w-full border-b py-2 md:py-3 text-xs md:text-sm last-of-type:border-none duration-200",
+                                        "border-b py-3 md:py-4 text-xs md:text-sm last-of-type:border-none duration-200",
                                         {
                                             // Standard view (Requester)
                                             "hover:bg-gray-50 dark:hover:bg-zinc-700/50": isRequester,
@@ -65,11 +65,12 @@ export default async function TransactionsList() {
                                             "bg-purple-50/30 dark:bg-purple-900/10 hover:bg-purple-50/50 dark:hover:bg-purple-900/20": isApprover && !isRequester
                                         }
                                     )}>
-                                        <td className="whitespace-nowrap py-2 pl-3 md:py-3 md:pl-6 pr-2 md:pr-3 text-gray-900 dark:text-gray-100">
+                                        <td className="whitespace-nowrap pl-4 md:pl-6 pr-3 py-3 md:py-4 text-gray-900 dark:text-gray-100">
                                             <p>{tx.createdAt.toLocaleDateString("en-GB", { timeZone: "Asia/Dhaka" })}</p>
                                         </td>
-                                        <td className="whitespace-nowrap px-2 py-2 md:px-3 md:py-3 text-gray-500 dark:text-gray-400">
+                                        <td className="whitespace-normal px-3 py-3 md:py-4 text-gray-500 dark:text-gray-400">
                                             {(() => {
+                                                // ... (keep logic same)
                                                 let mainText = "";
                                                 let subText = "";
                                                 const method = tx.paymentMethod || "Cash";
@@ -118,18 +119,18 @@ export default async function TransactionsList() {
 
                                                 return (
                                                     <>
-                                                        <div className="text-gray-900 dark:text-gray-300">{mainText}</div>
-                                                        <div className="text-xs text-gray-400 dark:text-gray-500 font-medium mt-0.5">
+                                                        <div className="text-gray-900 dark:text-gray-300 font-medium">{mainText}</div>
+                                                        <div className="text-[10px] text-gray-400 dark:text-gray-500 font-bold tracking-tight mt-1">
                                                             {subText}
                                                         </div>
                                                     </>
                                                 );
                                             })()}
                                         </td>
-                                        <td className="whitespace-nowrap px-3 py-3 font-semibold text-gray-900 dark:text-gray-100">
+                                        <td className="whitespace-nowrap px-3 py-4 font-bold text-gray-900 dark:text-gray-100 text-right">
                                             ৳{tx.amount.toFixed(2)}
                                         </td>
-                                        <td className="whitespace-nowrap px-3 py-3">
+                                        <td className="whitespace-nowrap pl-3 pr-4 md:pr-6 py-4">
                                             <span className={clsx(
                                                 'inline-flex items-center rounded-full px-2 py-1 text-xs font-medium',
                                                 {

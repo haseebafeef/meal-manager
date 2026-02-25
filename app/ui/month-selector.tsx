@@ -19,17 +19,33 @@ export default function MonthSelector({ months }: { months: string[] }) {
         replace(`${pathname}?${params.toString()}`);
     }
 
+    // Extract selectedYear and selectedMonth from currentMonth for the new value prop
+    const [selectedYear, selectedMonth] = currentMonth.split('-');
+
+    // Adapt handleMonthChange to fit the existing handleChange logic
+    const handleMonthChange = (month: number, year: number) => {
+        const newMonthTerm = `${year}-${String(month).padStart(2, '0')}`;
+        handleChange(newMonthTerm);
+    };
+
     return (
-        <select
-            className="block w-full rounded-md border border-gray-200 py-[9px] pl-3 text-sm outline-2 placeholder:text-gray-500 text-gray-900 md:w-48 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
-            defaultValue={currentMonth}
-            onChange={(e) => handleChange(e.target.value)}
-        >
-            {months.map((month) => (
-                <option key={month} value={month}>
-                    {new Date(month + '-01').toLocaleString('default', { month: 'long', year: 'numeric' })}
-                </option>
-            ))}
-        </select>
+        <div className="relative group">
+            <select
+                id="month-selector"
+                name="month-selector"
+                className="peer input-compact pr-8 pl-3 font-bold bg-white/50 dark:bg-zinc-800/50 backdrop-blur-sm"
+                value={`${selectedYear}-${selectedMonth}`} // Use selectedYear and selectedMonth
+                onChange={(e) => {
+                    const [y, m] = e.target.value.split('-');
+                    handleMonthChange(parseInt(m), parseInt(y));
+                }}
+            >
+                {months.map((month) => (
+                    <option key={month} value={month}>
+                        {new Date(month + '-01').toLocaleString('default', { month: 'long', year: 'numeric' })}
+                    </option>
+                ))}
+            </select>
+        </div>
     );
 }

@@ -62,9 +62,9 @@ export default async function Dashboard() {
 
     return (
         <BackgroundWrapper>
-            <main className="text-gray-900 dark:text-gray-100 p-4 md:p-6 pb-64 transition-colors duration-300 pointer-events-none">
+            <main className="text-gray-900 dark:text-gray-100 p-3 md:p-6 pb-64 transition-colors duration-300">
                 {/* Header Section */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 gap-4 border-b border-gray-200 dark:border-gray-800 pb-6 pointer-events-auto w-full">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 gap-4 border-b border-gray-200 dark:border-gray-800 pb-6 w-full">
                     <div>
                         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Dashboard</h1>
                         <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm md:text-base">
@@ -74,7 +74,7 @@ export default async function Dashboard() {
                             Your Balance: <span className={`font-bold text-lg ${userSummary.remainingBalance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>৳{userSummary.remainingBalance.toFixed(2)}</span>
                         </p>
                     </div>
-                    <div className="flex items-center gap-3 flex-wrap w-full md:w-auto">
+                    <div className="flex items-center gap-3 flex-wrap w-full md:w-auto justify-end">
                         <ThemeToggle />
                         <Link href="/dashboard/history" className="btn-secondary flex-1 md:flex-none text-center justify-center">History</Link>
                         <Link href="/dashboard/meals" className="btn-secondary flex-1 md:flex-none text-center justify-center">Manage Meals</Link>
@@ -100,48 +100,48 @@ export default async function Dashboard() {
                 </div >
 
                 {/* Daily Meal Status */}
-                < div className="mb-8 p-6 rounded-xl bg-white/80 dark:bg-black/60 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-sm pointer-events-auto" >
-                    <div className="flex justify-between items-center mb-4">
+                < div className="mb-8 p-2.5 md:p-6 rounded-xl bg-white/80 dark:bg-black/60 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-sm" >
+                    <div className="flex justify-between items-center mb-2 md:mb-4">
                         <h2 className="text-lg font-bold text-gray-900 dark:text-white">Today&apos;s Meal Overview</h2>
                         <a href={`/dashboard/meals/history`} className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 hover:underline">
                             View History
                         </a>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
                         {/* Lunch */}
-                        <div className="p-4 rounded-lg bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/20">
-                            <div className="flex justify-between items-center mb-2">
-                                <h3 className="font-semibold text-orange-800 dark:text-orange-400">Lunch</h3>
-                                <span className="bg-orange-200 dark:bg-orange-800 text-orange-800 dark:text-orange-200 text-xs font-bold px-2 py-1 rounded-full">
+                        <div className="p-2 md:p-4 rounded-lg bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/20">
+                            <div className="flex justify-between items-center mb-0.5 md:mb-2">
+                                <h3 className="text-xs md:text-base font-semibold text-orange-800 dark:text-orange-400">Lunch</h3>
+                                <span className="bg-orange-200 dark:bg-orange-800 text-orange-800 dark:text-orange-200 text-[9px] md:text-xs font-bold px-1.5 py-0.5 rounded-full">
                                     {mealStats.lunch.count} Meals
                                 </span>
                             </div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                            <p className="text-[10px] md:text-sm text-gray-600 dark:text-gray-400 leading-tight md:leading-normal">
                                 {mealStats.lunch.count > 0 ? mealStats.lunch.users.join(', ') : 'No meals booked.'}
                             </p>
                         </div>
                         {/* Dinner */}
-                        <div className="p-4 rounded-lg bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/20">
-                            <div className="flex justify-between items-center mb-2">
-                                <h3 className="font-semibold text-indigo-800 dark:text-indigo-400">Dinner</h3>
-                                <span className="bg-indigo-200 dark:bg-indigo-800 text-indigo-800 dark:text-indigo-200 text-xs font-bold px-2 py-1 rounded-full">
+                        <div className="p-2 md:p-4 rounded-lg bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/20">
+                            <div className="flex justify-between items-center mb-0.5 md:mb-2">
+                                <h3 className="text-xs md:text-base font-semibold text-indigo-800 dark:text-indigo-400">Dinner</h3>
+                                <span className="bg-indigo-200 dark:bg-indigo-800 text-indigo-800 dark:text-indigo-200 text-[9px] md:text-xs font-bold px-1.5 py-0.5 rounded-full">
                                     {mealStats.dinner.count} Meals
                                 </span>
                             </div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                            <p className="text-[10px] md:text-sm text-gray-600 dark:text-gray-400 leading-tight md:leading-normal">
                                 {mealStats.dinner.count > 0 ? mealStats.dinner.users.join(', ') : 'No meals booked.'}
                             </p>
                         </div>
                         {/* Sahri (Conditional or Always?) - Let's show if count > 0 OR if in range. For simplicity, showing if structure exists (it always does now) */}
                         {(mealStats.sahri && (
-                            <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/20 md:col-span-2 lg:col-span-1">
-                                <div className="flex justify-between items-center mb-2">
-                                    <h3 className="font-semibold text-purple-800 dark:text-purple-400">Sahri</h3>
-                                    <span className="bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200 text-xs font-bold px-2 py-1 rounded-full">
+                            <div className="p-2 md:p-4 rounded-lg bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/20 md:col-span-2 lg:col-span-1">
+                                <div className="flex justify-between items-center mb-0.5 md:mb-2">
+                                    <h3 className="text-xs md:text-base font-semibold text-purple-800 dark:text-purple-400">Sahri</h3>
+                                    <span className="bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200 text-[9px] md:text-xs font-bold px-1.5 py-0.5 rounded-full">
                                         {mealStats.sahri.count} Meals
                                     </span>
                                 </div>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                <p className="text-[10px] md:text-sm text-gray-600 dark:text-gray-400 leading-tight md:leading-normal">
                                     {mealStats.sahri.count > 0 ? mealStats.sahri.users.join(', ') : 'No meals booked.'}
                                 </p>
                             </div>
@@ -150,9 +150,9 @@ export default async function Dashboard() {
                 </div >
 
                 {/* User Personal Summary */}
-                < div className="mb-8 p-4 md:p-6 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-100 dark:border-blue-900/30 shadow-sm pointer-events-auto" >
+                < div className="mb-8 p-4 md:p-6 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-100 dark:border-blue-900/30 shadow-sm" >
                     <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">My Summary (This Month)</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-6">
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 md:gap-6">
                         <SummaryCard title="Prev. Month Balance" amount={userSummary.previousMonthBalance} color="gray" />
                         <SummaryCard title="Total Credit" amount={userSummary.currentMonthCredit} color="blue" />
                         <SummaryCard title="Total Meals (Passed)" amount={userSummary.passedMealCount} color="purple" prefix="" />
@@ -162,16 +162,19 @@ export default async function Dashboard() {
                 </div >
 
                 {/* Summary Grid (System) */}
-                < div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-8 pointer-events-auto" >
-                    <SummaryCard title="Prev. Month Balance" amount={summary.previousMonthBalance} color="gray" />
-                    <SummaryCard title="Total Credit (This Month)" amount={summary.currentMonthCredit} color="blue" />
-                    <SummaryCard title="Expenses (This Month)" amount={summary.currentMonthExpenses} color="red" />
-                    <SummaryCard title="Remaining Fund" amount={summary.remainingFund} color={summary.remainingFund >= 0 ? 'green' : 'red'} />
+                < div className="mb-8 p-4 md:p-6 rounded-xl bg-gradient-to-r from-gray-50 to-zinc-50 dark:from-zinc-900/20 dark:to-black/20 border border-gray-100 dark:border-zinc-800/30 shadow-sm" >
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">System Summary (This Month)</h2>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-6">
+                        <SummaryCard title="Prev. Month Balance" amount={summary.previousMonthBalance} color="gray" />
+                        <SummaryCard title="Total Credit (This Month)" amount={summary.currentMonthCredit} color="blue" />
+                        <SummaryCard title="Expenses (This Month)" amount={summary.currentMonthExpenses} color="red" />
+                        <SummaryCard title="Remaining Fund" amount={summary.remainingFund} color={summary.remainingFund >= 0 ? 'green' : 'red'} />
+                    </div>
                 </div >
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     {/* Left Column: Actions */}
-                    <div className="lg:col-span-5 space-y-8 pointer-events-auto">
+                    <div className="lg:col-span-5 space-y-8">
                         {/* Admin Section */}
                         {currentUser.isAdmin && (
                             <div className="card-panel border-purple-200 dark:border-purple-900/30 bg-purple-50 dark:bg-purple-900/10">
@@ -188,7 +191,7 @@ export default async function Dashboard() {
                     </div>
 
                     {/* Right Column: Expenses */}
-                    <div className="lg:col-span-7 space-y-8 pointer-events-auto">
+                    <div className="lg:col-span-7 space-y-8">
                         {/* Add Expenses */}
                         <div className="card-panel">
                             <AddExpensesTable />
@@ -205,7 +208,7 @@ export default async function Dashboard() {
                     </div>
                 </div>
 
-                <div className="mt-8 pointer-events-auto">
+                <div className="mt-8">
                     <div className="card-panel">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-bold">Recent Transactions</h2>
@@ -230,9 +233,9 @@ function SummaryCard({ title, amount, color, prefix = '৳' }: { title: string, 
     };
 
     return (
-        <div className="bg-white/80 dark:bg-black/60 backdrop-blur-md p-4 md:p-6 rounded-xl shadow-sm border border-white/20 dark:border-white/10">
-            <p className="text-xs md:text-sm font-medium text-gray-500 dark:text-gray-400">{title}</p>
-            <p className={`text-lg md:text-2xl font-bold mt-1 md:mt-2 ${colorClasses[color] || colorClasses.gray}`}>
+        <div className="bg-white/80 dark:bg-black/60 backdrop-blur-md p-2.5 md:p-5 rounded-xl shadow-sm border border-white/20 dark:border-white/10 transition-all hover:shadow-md">
+            <p className="label-compact block mb-0.5 leading-none truncate">{title}</p>
+            <p className={`text-base md:text-2xl font-bold mt-1 ${colorClasses[color] || colorClasses.gray}`}>
                 {prefix}{amount.toFixed(prefix === '৳' ? 2 : 0)}
             </p>
         </div>

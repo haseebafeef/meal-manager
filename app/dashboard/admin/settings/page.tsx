@@ -18,7 +18,7 @@ export default async function AdminSettingsPage() {
         <main className="min-h-screen bg-gray-50 dark:bg-zinc-900 text-gray-900 dark:text-gray-100 p-4 md:p-6 transition-colors duration-300">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">Admin Settings</h1>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full md:w-auto flex-wrap justify-end">
                     <ThemeToggle />
                     <Link href="/dashboard/admin" className="btn-secondary">Back to Admin</Link>
                     <UserDropdown user={currentUser} />

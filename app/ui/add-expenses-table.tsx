@@ -72,71 +72,71 @@ export default function AddExpensesTable() {
 
             <form action={dispatch}>
                 <div className="overflow-x-auto border border-gray-300 dark:border-gray-600 rounded-lg mb-4">
-                    <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-600">
+                    <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-600 table-fixed" style={{ minWidth: '450px' }}>
                         <thead className="bg-gray-100 dark:bg-zinc-700">
                             <tr>
-                                <th className="px-1 py-2 md:px-3 md:py-3 text-left text-[10px] md:text-xs font-bold text-gray-700 dark:text-gray-300 uppercase w-6 md:w-8">#</th>
-                                <th className="px-1 py-2 md:px-3 md:py-3 text-left text-[10px] md:text-xs font-bold text-gray-700 dark:text-gray-300 uppercase min-w-[100px] md:min-w-[150px]">Item / Description</th>
-                                <th className="px-1 py-2 md:px-3 md:py-3 text-left text-[10px] md:text-xs font-bold text-gray-700 dark:text-gray-300 uppercase w-16 md:w-24">Vol</th>
-                                <th className="px-1 py-2 md:px-3 md:py-3 text-left text-[10px] md:text-xs font-bold text-gray-700 dark:text-gray-300 uppercase w-14 md:w-20">Unit</th>
-                                <th className="px-1 py-2 md:px-3 md:py-3 text-left text-[10px] md:text-xs font-bold text-gray-700 dark:text-gray-300 uppercase w-16 md:w-28">Rate</th>
-                                <th className="px-1 py-2 md:px-3 md:py-3 text-left text-[10px] md:text-xs font-bold text-gray-700 dark:text-gray-300 uppercase w-16 md:w-28">Total</th>
-                                <th className="px-1 py-2 md:px-3 md:py-3 text-left text-[10px] md:text-xs font-bold text-gray-700 dark:text-gray-300 uppercase w-8 md:w-12">Memo</th>
-                                <th className="px-1 py-2 md:px-3 md:py-3 w-8 md:w-10"></th>
+                                <th className="px-0.5 py-1 text-center text-[8px] md:text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase w-[5%]">#</th>
+                                <th className="px-1 py-1 text-left text-[8px] md:text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase w-[25%] whitespace-normal">Item / Description</th>
+                                <th className="px-1 py-1 text-left text-[8px] md:text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase w-[12%]">Vol</th>
+                                <th className="px-1 py-1 text-left text-[8px] md:text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase w-[10%]">Qty</th>
+                                <th className="px-1 py-1 text-left text-[8px] md:text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase w-[15%]">Rate</th>
+                                <th className="px-1 py-1 text-left text-[8px] md:text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase w-[18%]">Total</th>
+                                <th className="px-1 py-1 text-center text-[8px] md:text-[10px] font-bold text-gray-700 dark:text-gray-300 uppercase w-[10%]">Memo</th>
+                                <th className="px-1 py-1 w-[5%]"></th>
                             </tr>
                         </thead>
                         <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-200 dark:divide-gray-700">
                             {rows.map((row, index) => (
                                 <tr key={row.id}>
-                                    <td className="px-1 py-1 md:px-3 md:py-2 text-xs md:text-sm text-gray-900 dark:text-gray-100 font-medium">{index + 1}</td>
-                                    <td className="px-1 py-1 md:px-3 md:py-2">
+                                    <td className="px-0.5 py-0.5 md:py-1 text-center text-[9px] md:text-sm text-gray-900 dark:text-gray-100 font-medium">{index + 1}</td>
+                                    <td className="px-0.5 py-0.5 md:py-1">
                                         <input
                                             type="text"
                                             name={`entry_${index}_description`}
                                             value={row.description}
                                             onChange={e => updateRow(row.id, 'description', e.target.value)}
-                                            className="block w-full border border-gray-400 dark:border-gray-600 rounded-md text-xs md:text-sm py-1 px-1 md:py-2 md:px-3 focus:ring-red-500 focus:border-red-500 text-gray-900 dark:text-white bg-transparent placeholder:text-gray-400"
-                                            placeholder="Item Name"
+                                            className="block w-full border border-gray-400 dark:border-gray-600 rounded-md text-[9px] md:text-xs py-0.5 px-1 md:py-1 md:px-1.5 focus:ring-red-500 focus:border-red-500 text-gray-900 dark:text-white bg-transparent placeholder:text-gray-400"
+                                            placeholder="Item"
                                             required
                                         />
                                     </td>
-                                    <td className="px-1 py-1 md:px-3 md:py-2">
+                                    <td className="px-0.5 py-0.5 md:py-1">
                                         <input
                                             type="text"
                                             name={`entry_${index}_volume`}
                                             value={row.volume || ''}
                                             onChange={e => updateRow(row.id, 'volume', e.target.value)}
-                                            className="block w-full border border-gray-400 dark:border-gray-600 rounded-md text-xs md:text-sm py-1 px-1 md:py-2 md:px-3 text-gray-900 dark:text-white bg-transparent placeholder:text-gray-400 focus:ring-red-500 focus:border-red-500"
+                                            className="block w-full border border-gray-400 dark:border-gray-600 rounded-md text-[9px] md:text-xs py-0.5 px-0.5 md:py-1 md:px-1.5 text-gray-900 dark:text-white bg-transparent placeholder:text-gray-400 focus:ring-red-500 focus:border-red-500"
                                             placeholder="e.g. 1kg"
                                         />
                                     </td>
-                                    <td className="px-1 py-1 md:px-3 md:py-2">
+                                    <td className="px-0.5 py-0.5 md:py-1">
                                         <input
                                             type="number" step="any"
                                             name={`entry_${index}_unit`}
                                             value={row.unit || ''}
                                             onChange={e => updateRow(row.id, 'unit', e.target.value)}
-                                            className="block w-full border border-gray-400 dark:border-gray-600 rounded-md text-xs md:text-sm py-1 px-1 md:py-2 md:px-3 text-gray-900 dark:text-white bg-transparent placeholder:text-gray-400 focus:ring-red-500 focus:border-red-500"
+                                            className="block w-full border border-gray-400 dark:border-gray-600 rounded-md text-[9px] md:text-xs py-0.5 px-0.5 md:py-1 md:px-1.5 text-gray-900 dark:text-white bg-transparent placeholder:text-gray-400 focus:ring-red-500 focus:border-red-500"
                                             placeholder="Qty"
                                         />
                                     </td>
-                                    <td className="px-1 py-1 md:px-3 md:py-2">
+                                    <td className="px-0.5 py-0.5 md:py-1">
                                         <input
                                             type="number" step="0.01"
                                             name={`entry_${index}_unitPrice`}
                                             value={row.unitPrice || ''}
                                             onChange={e => updateRow(row.id, 'unitPrice', e.target.value)}
-                                            className="block w-full border border-gray-400 dark:border-gray-600 rounded-md text-xs md:text-sm py-1 px-1 md:py-2 md:px-3 text-gray-900 dark:text-white bg-transparent placeholder:text-gray-400 focus:ring-red-500 focus:border-red-500"
-                                            placeholder="0.00"
+                                            className="block w-full border border-gray-400 dark:border-gray-600 rounded-md text-[9px] md:text-xs py-0.5 px-0.5 md:py-1 md:px-1.5 text-gray-900 dark:text-white bg-transparent placeholder:text-gray-400 focus:ring-red-500 focus:border-red-500"
+                                            placeholder="Rate"
                                         />
                                     </td>
-                                    <td className="px-1 py-1 md:px-3 md:py-2">
+                                    <td className="px-0.5 py-0.5 md:py-1">
                                         <input
                                             type="number" step="0.01"
                                             name={`entry_${index}_amount`}
                                             value={row.amount}
                                             onChange={e => updateRow(row.id, 'amount', e.target.value)}
-                                            className={clsx("block w-full rounded-md text-xs md:text-sm py-1 px-1 md:py-2 md:px-3 font-semibold text-gray-900 dark:text-white bg-transparent focus:ring-red-500 focus:border-red-500", {
+                                            className={clsx("block w-full rounded-md text-[9px] md:text-xs py-0.5 px-0.5 md:py-1 md:px-1.5 font-semibold text-gray-900 dark:text-white bg-transparent focus:ring-red-500 focus:border-red-500", {
                                                 "border border-green-500 bg-green-50 dark:bg-green-900/20": !row.isManual && row.unit && row.unitPrice,
                                                 "border border-gray-400 dark:border-gray-600": row.isManual || (!row.unit && !row.unitPrice)
                                             })}

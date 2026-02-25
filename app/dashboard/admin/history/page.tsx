@@ -162,7 +162,7 @@ export default async function AdminHistoryPage({
         <main className="min-h-screen bg-gray-50 dark:bg-zinc-900 text-gray-900 dark:text-gray-100 p-4 md:p-6 transition-colors">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">Monthly Transactions (Admin)</h1>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full md:w-auto flex-wrap justify-end">
                     <ThemeToggle />
                     <Link href="/dashboard/admin" className="btn-secondary">Back to Admin Hub</Link>
                     <UserDropdown user={currentUser} />
@@ -170,24 +170,24 @@ export default async function AdminHistoryPage({
             </div>
 
             {/* Month Navigation */}
-            <div className="flex justify-between items-center bg-white dark:bg-zinc-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-6 max-w-sm mx-auto">
+            <div className="flex justify-between items-center bg-white/80 dark:bg-black/60 backdrop-blur-sm p-3 rounded-xl shadow-sm border border-white/20 dark:border-white/10 mb-6 max-w-sm mx-auto">
                 <Link
                     href={prevLink}
                     className={clsx("p-2 rounded-full transition-colors", {
-                        "hover:bg-gray-100 dark:hover:bg-zinc-700": !isPrevDisabled,
+                        "hover:bg-gray-100/50 dark:hover:bg-zinc-800": !isPrevDisabled,
                         "opacity-30 cursor-not-allowed pointer-events-none": isPrevDisabled
                     })}
                 >
                     <ChevronLeftIcon className="w-5 h-5" />
                 </Link>
                 <span className="font-bold text-lg">{format(currentMonthDate, 'MMMM yyyy')}</span>
-                <Link href={nextLink} className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded-full transition-colors">
+                <Link href={nextLink} className="p-2 hover:bg-gray-100/50 dark:hover:bg-zinc-800 rounded-full transition-colors">
                     <ChevronRightIcon className="w-5 h-5" />
                 </Link>
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-6 mb-8">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 md:gap-4 mb-8">
                 <SummaryCard title="Prev. Month Balance" amount={summary.previousMonthBalance} color="gray" />
                 <SummaryCard title="Total Credit (This Month)" amount={summary.currentMonthCredit} color="blue" />
                 {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
@@ -196,27 +196,26 @@ export default async function AdminHistoryPage({
                 <SummaryCard title="Remaining Fund" amount={summary.remainingFund} color={summary.remainingFund >= 0 ? 'green' : 'red'} />
             </div>
 
-            {/* Transactions Table */}
-            <div className="rounded-xl border bg-white dark:bg-zinc-800 p-6 shadow-sm overflow-x-auto border-gray-100 dark:border-gray-700">
-                <table className="min-w-full text-gray-900 dark:text-gray-100">
+            <div className="card-panel overflow-x-auto">
+                <table className="min-w-full text-gray-900 dark:text-gray-100" style={{ minWidth: '1000px' }}>
                     <thead className="rounded-lg text-left text-sm font-normal">
                         <tr>
-                            <th scope="col" className="px-4 py-3 font-medium sm:pl-6 text-gray-500 dark:text-gray-400">Sender</th>
-                            <th scope="col" className="px-3 py-3 font-medium text-gray-500 dark:text-gray-400">Description</th>
-                            <th scope="col" className="px-3 py-3 font-medium text-gray-500 dark:text-gray-400">Amount</th>
-                            <th scope="col" className="px-3 py-3 font-medium text-gray-500 dark:text-gray-400">Time</th>
-                            <th scope="col" className="px-3 py-3 font-medium text-gray-500 dark:text-gray-400">Receiver</th>
-                            <th scope="col" className="px-3 py-3 font-medium text-gray-500 dark:text-gray-400">Note</th>
-                            <th scope="col" className="px-3 py-3 font-medium text-gray-500 dark:text-gray-400">Status</th>
+                            <th scope="col" className="pl-4 md:pl-6 pr-3 py-3 text-left label-compact">Sender</th>
+                            <th scope="col" className="w-full px-3 py-3 text-left label-compact">Description</th>
+                            <th scope="col" className="px-3 py-3 text-left label-compact">Amount</th>
+                            <th scope="col" className="px-3 py-3 text-left label-compact">Time</th>
+                            <th scope="col" className="px-3 py-3 text-left label-compact">Receiver</th>
+                            <th scope="col" className="px-3 py-3 text-left label-compact">Note</th>
+                            <th scope="col" className="pl-3 pr-4 md:pr-6 py-3 text-left label-compact">Status</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-zinc-800 divide-y divide-gray-100 dark:divide-gray-700">
+                    <tbody className="bg-white/50 dark:bg-zinc-800/40 divide-y divide-gray-100 dark:divide-gray-700/50">
                         {transactions.map((tx) => {
                             const { mainText, subText } = formatDescription(tx);
 
                             return (
-                                <tr key={tx.id} className="w-full py-3 text-sm hover:bg-gray-50 dark:hover:bg-zinc-700/50 transition-colors">
-                                    <td className="whitespace-nowrap py-3 pl-6 pr-3 font-medium text-gray-900 dark:text-gray-100">{tx.requester.name}</td>
+                                <tr key={tx.id} className="border-b py-3 text-sm last:border-none hover:bg-gray-50 dark:hover:bg-zinc-700/50 duration-200">
+                                    <td className="whitespace-nowrap pl-4 md:pl-6 pr-3 py-3 font-medium text-gray-900 dark:text-gray-100">{tx.requester.name}</td>
                                     <td className="px-3 py-3 max-w-xs">
                                         <div className="flex flex-col">
                                             <span className="text-gray-900 dark:text-gray-100 font-medium truncate">
@@ -233,7 +232,7 @@ export default async function AdminHistoryPage({
                                     <td className="px-3 py-3 max-w-[150px] truncate text-gray-500 dark:text-gray-400 italic" title={tx.note || ""}>
                                         {tx.note || "-"}
                                     </td>
-                                    <td className="whitespace-nowrap px-3 py-3">
+                                    <td className="whitespace-nowrap pl-3 pr-4 md:pr-6 py-3">
                                         <span className={clsx(
                                             'inline-flex items-center rounded-full px-2 py-1 text-xs font-medium',
                                             {

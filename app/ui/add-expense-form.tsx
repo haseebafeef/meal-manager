@@ -70,7 +70,7 @@ export default function AddExpenseForm() {
                 </div>
 
                 {/* Header */}
-                <div className="hidden md:grid grid-cols-12 gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2 px-1">
+                <div className="hidden md:grid grid-cols-12 gap-2 label-compact mb-2 px-1 border-b dark:border-gray-700 pb-2">
                     <div className="col-span-1 text-center">#</div>
                     <div className="col-span-3">Item / Description</div>
                     <div className="col-span-2">Vol</div>
@@ -81,15 +81,15 @@ export default function AddExpenseForm() {
                 </div>
 
                 {/* Rows */}
-                <div className="space-y-3 md:space-y-2">
+                <div className="space-y-4 md:space-y-3">
                     {rows.map((row, index) => (
-                        <div key={row.id} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-start md:items-center bg-gray-50 dark:bg-[#2a2d33/0] p-3 md:p-0 rounded-lg md:rounded-none relative group">
+                        <div key={row.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start md:items-center bg-gray-50/50 dark:bg-zinc-800/20 p-4 md:p-1.5 rounded-lg md:rounded-none relative group transition-colors">
 
                             {/* Row # */}
                             <div className="hidden md:block col-span-1 text-center font-mono text-sm text-gray-500">{index + 1}</div>
 
                             {/* Mobile Label */}
-                            <div className="md:hidden text-xs font-bold text-gray-500 mb-1">Item {index + 1}</div>
+                            <div className="md:hidden label-compact block mb-1">Item {index + 1}</div>
 
                             {/* Description */}
                             <div className="col-span-3">
@@ -98,7 +98,7 @@ export default function AddExpenseForm() {
                                     name={`entry_${index}_description`}
                                     value={row.description}
                                     onChange={(e) => updateRow(index, 'description', e.target.value)}
-                                    className="w-full rounded-lg bg-white dark:bg-[#2a2d33] border border-gray-200 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white focus:border-red-500 focus:ring-red-500 focus:outline-none"
+                                    className="peer input-compact px-3"
                                     placeholder="Item Name"
                                     required
                                 />
@@ -112,7 +112,7 @@ export default function AddExpenseForm() {
                                         name={`entry_${index}_volume`}
                                         value={row.volume}
                                         onChange={(e) => updateRow(index, 'volume', e.target.value)}
-                                        className="w-full rounded-lg bg-white dark:bg-[#2a2d33] border border-gray-200 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white focus:border-red-500 focus:ring-red-500 focus:outline-none"
+                                        className="peer input-compact px-3"
                                         placeholder="Vol (e.g. 1kg)"
                                     />
                                 </div>
@@ -125,7 +125,7 @@ export default function AddExpenseForm() {
                                         name={`entry_${index}_unit`}
                                         value={row.unit}
                                         onChange={(e) => updateRow(index, 'unit', e.target.value)}
-                                        className="w-full rounded-lg bg-white dark:bg-[#2a2d33] border border-gray-200 dark:border-gray-600 px-2 py-2 text-sm text-gray-900 dark:text-white focus:border-red-500 focus:ring-red-500 focus:outline-none"
+                                        className="peer input-compact px-2"
                                         placeholder="Qty"
                                     />
                                 </div>
@@ -138,7 +138,7 @@ export default function AddExpenseForm() {
                                         name={`entry_${index}_unitPrice`}
                                         value={row.unitPrice}
                                         onChange={(e) => updateRow(index, 'unitPrice', e.target.value)}
-                                        className="w-full rounded-lg bg-white dark:bg-[#2a2d33] border border-gray-200 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white focus:border-red-500 focus:ring-red-500 focus:outline-none"
+                                        className="peer input-compact px-3"
                                         placeholder="Rate / Unit"
                                     />
                                 </div>
@@ -152,14 +152,14 @@ export default function AddExpenseForm() {
                                     name={`entry_${index}_amount`}
                                     value={row.amount}
                                     onChange={(e) => updateRow(index, 'amount', e.target.value)}
-                                    className="w-full rounded-lg bg-gray-50 dark:bg-[#2a2d33] border border-gray-200 dark:border-green-900/50 px-3 py-2 text-sm font-bold text-gray-900 dark:text-white focus:border-green-500 focus:ring-green-500 focus:outline-none text-right placeholder-gray-400"
+                                    className="peer input-compact px-3 font-bold dark:border-green-900/50 text-right placeholder-gray-400"
                                     placeholder="0.00"
                                     required
                                 />
                             </div>
 
                             {/* Actions */}
-                            <div className="col-span-1 flex items-center justify-end md:justify-center gap-3 mt-2 md:mt-0 border-t md:border-t-0 border-gray-200 dark:border-gray-700 pt-2 md:pt-0">
+                            <div className="col-span-1 flex items-center justify-end md:justify-center gap-4 mt-2 md:mt-0 border-t md:border-t-0 border-gray-200 dark:border-gray-700 pt-3 md:pt-0">
                                 {/* Memo Upload */}
                                 <label className="cursor-pointer text-gray-400 hover:text-blue-500 transition-colors" title="Upload Memo">
                                     <input
