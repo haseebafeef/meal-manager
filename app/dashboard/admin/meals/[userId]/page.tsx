@@ -51,6 +51,7 @@ export default async function AdminManageUserMealsPage({ params }: { params: Pro
                     adminOverride={true}
                     defaultLunch={targetUser.defaultLunchStatus}
                     defaultDinner={targetUser.defaultDinnerStatus}
+                    userJoinedDate={targetUser.createdAt}
                 />
             </div>
         </main>

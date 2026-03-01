@@ -2,7 +2,7 @@
 
 import { auth } from '@/auth';
 import { prisma } from '@/app/lib/prisma';
-import { startOfMonth, endOfMonth, addMonths, endOfDay } from 'date-fns';
+import { endOfMonth, addMonths, endOfDay } from 'date-fns';
 import { getNowDhaka, formatUserName } from '@/app/lib/utils';
 import { getSystemSettings } from '@/app/lib/settings-actions';
 import { SETTINGS_KEYS } from '@/app/lib/constants';
@@ -34,7 +34,9 @@ export async function getMealStatus(targetUserId?: string) {
     if (!userId) return [];
 
     const now = new Date();
-    const start = startOfMonth(now);
+    // Fetch from system epoch (Feb 1, 2026) to ensure past history is always returned
+    const systemEpoch = new Date(Date.UTC(2026, 1, 1));
+    const start = systemEpoch;
     const end = endOfMonth(addMonths(now, 6));
 
     const statuses = await prisma.mealStatus.findMany({

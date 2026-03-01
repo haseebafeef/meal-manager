@@ -15,7 +15,7 @@ type MealStatus = {
     sahri?: number; // Optional as old records might miss it (though we backfilled via Prisma default?)
 };
 
-export default function MealCalendar({ initialStatuses, targetUserId, adminOverride = false, defaultLunch = false, defaultDinner = false }: { initialStatuses: MealStatus[], targetUserId?: string, adminOverride?: boolean, defaultLunch?: boolean, defaultDinner?: boolean, defaultSahri?: boolean }) {
+export default function MealCalendar({ initialStatuses, targetUserId, adminOverride = false, defaultLunch = false, defaultDinner = false, userJoinedDate }: { initialStatuses: MealStatus[], targetUserId?: string, adminOverride?: boolean, defaultLunch?: boolean, defaultDinner?: boolean, userJoinedDate?: Date }) {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const router = useRouter();
 
@@ -151,14 +151,12 @@ export default function MealCalendar({ initialStatuses, targetUserId, adminOverr
                             // - If no record:
                             //   - PAST: Default to 1 (Legacy ON)
                             //   - FUTURE/TODAY: Use prop value (defaultLunchVal, defaultDinnerVal)
-
-                            // Sahri Fallback? 
-                            // We don't have defaultSahri prop yet. Assuming 0 or passed prop?
-                            // Let's assume 1 if active date and NO record? 
-                            // Or safer 0?
-                            // Existing logic defaults PAST to 1.
                             let fallback = { lunch: 1, dinner: 1, sahri: 1 };
-                            if (!isPast) {
+
+                            if (userJoinedDate && isBefore(startOfDay(day), startOfDay(userJoinedDate))) {
+                                // Before user existed: absolute zero fallback regardless of past/future status
+                                fallback = { lunch: 0, dinner: 0, sahri: 0 };
+                            } else if (!isPast) {
                                 fallback = { lunch: defaultLunchVal, dinner: defaultDinnerVal, sahri: 0 }; // Default Sahri OFF for now in UI unless we fetch it
                             }
 
