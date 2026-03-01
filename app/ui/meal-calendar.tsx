@@ -164,7 +164,7 @@ export default function MealCalendar({ initialStatuses, targetUserId, adminOverr
                             const futureLimit = endOfMonth(addMonths(now, 2));
                             const isFutureLocked = isAfter(day, futureLimit);
 
-                            const adminPastLimit = subDays(startOfDay(now), 10);
+                            const adminPastLimit = subDays(startOfDay(now), 15);
                             const isTooOldForAdmin = isBefore(day, adminPastLimit);
 
                             const isLocked = adminOverride
