@@ -7,6 +7,7 @@ import { prisma } from '@/app/lib/prisma';
 import { getSystemSettings } from '@/app/lib/settings-actions';
 import { SETTINGS_KEYS } from '@/app/lib/constants';
 import { syncUserStatus } from '@/app/lib/expenses';
+import { finalizeMonth } from '@/app/lib/expenses/mutations';
 import { isSahriActive } from './utils';
 
 export async function updateMealCount(dateStr: string, type: 'lunch' | 'dinner' | 'sahri', newCount: number, targetUserId?: string) {
@@ -50,11 +51,9 @@ export async function updateMealCount(dateStr: string, type: 'lunch' | 'dinner' 
 
     const isByAdmin = !!targetUserId;
 
-    // Fetch dynamic settings globally (needed for syncUserStatus at end)
-    const settingsList = await prisma.systemSettings.findMany();
-    const settingsMap = new Map(settingsList.map(s => [s.key, s.value]));
-    // Backwards compatibility for local usage
-    const settings = Object.fromEntries(settingsMap);
+    // Fetch dynamic settings from cache
+    const settings = await getSystemSettings();
+    const settingsMap = new Map(Object.entries(settings));
 
     if (!isByAdmin) {
         // Enforce Active Status
@@ -183,6 +182,24 @@ export async function updateMealCount(dateStr: string, type: 'lunch' | 'dinner' 
             });
         }
 
+        // If an admin edited a date that falls in an already-finalized month (has a MonthlySnapshot),
+        // re-run finalization with the same stored rate so totalMeals and totalCost stay accurate.
+        // Without this, the stale snapshot would silently override the edited meal in cost calculations.
+        if (isByAdmin) {
+            const editYear = dbDate.getUTCFullYear();
+            const editMonthNum = dbDate.getUTCMonth() + 1; // 1-indexed
+            const editMonthKey = `${editYear}-${String(editMonthNum).padStart(2, '0')}`;
+
+            const existingSnapshot = await prisma.monthlySnapshot.findUnique({
+                where: { userId_month: { userId, month: editMonthKey } }
+            });
+
+            if (existingSnapshot) {
+                // Re-finalize using the snapshot's own rate to refresh meal count and cost.
+                await finalizeMonth(userId, editYear, editMonthNum, existingSnapshot.mealRate);
+            }
+        }
+
         // Revalidate paths
         if (isByAdmin) {
             revalidatePath(`/dashboard/admin/meals/${userId}`);
@@ -191,13 +208,11 @@ export async function updateMealCount(dateStr: string, type: 'lunch' | 'dinner' 
 
         revalidatePath('/dashboard/meals');
         revalidatePath('/dashboard/meals/history');
-        
-        // Optimistic sync: Check status but don't block response if possible?
-        // We await it to ensure consistency, but we could make it fire-and-forget if speed is critical.
-        // For now, keeping await as correctness > speed involved with money/status.
+
+        // Correctness > speed here: await to ensure balance status is consistent before returning.
         await syncUserStatus(userId, settingsMap);
 
-        return { success: true };
+        return { success: "Meal status updated." };
     } catch (error) {
         console.error(error);
         return { error: "Database error" };
@@ -213,9 +228,12 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner' | 'sa
         const emailToUpdate = session.user.email;
         let userIdToLock: string | undefined;
 
-        // 1. Resolve User ID early
         if (targetUserId) {
             userIdToLock = targetUserId;
+            const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
+            if (!currentUser?.isAdmin) {
+                return { error: "Unauthorized: Admin access required." };
+            }
         } else {
             const u = await prisma.user.findUnique({ where: { email: emailToUpdate } });
             userIdToLock = u?.id;
@@ -459,11 +477,6 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner' | 'sa
 
         // 5. Update the Setting
         if (targetUserId) {
-            const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
-            if (!currentUser?.isAdmin) {
-                return { error: "Unauthorized: Admin access required" };
-            }
-
             let field = 'defaultLunchStatus';
             if (type === 'dinner') field = 'defaultDinnerStatus';
             else if (type === 'sahri') field = 'defaultSahriStatus';
@@ -474,7 +487,7 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner' | 'sa
             });
             revalidatePath(`/dashboard/admin/meals/${targetUserId}`);
             revalidatePath('/dashboard/meals');
-            return { success: true };
+            return { success: "Preferences updated." };
         } else {
             let field = 'defaultLunchStatus';
             if (type === 'dinner') field = 'defaultDinnerStatus';
@@ -489,7 +502,7 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner' | 'sa
             if (userIdToLock) {
                 revalidatePath(`/dashboard/admin/meals/${userIdToLock}`);
             }
-            return { success: true };
+            return { success: "Preferences updated." };
         }
     } catch (error) {
         console.error(`Failed to update default ${type} status:`, error);

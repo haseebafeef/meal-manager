@@ -15,7 +15,7 @@ type MealStatus = {
     sahri?: number; // Optional as old records might miss it (though we backfilled via Prisma default?)
 };
 
-export default function MealCalendar({ initialStatuses, targetUserId, adminOverride = false, defaultLunch = false, defaultDinner = false, userJoinedDate }: { initialStatuses: MealStatus[], targetUserId?: string, adminOverride?: boolean, defaultLunch?: boolean, defaultDinner?: boolean, userJoinedDate?: Date }) {
+export default function MealCalendar({ initialStatuses, targetUserId, adminOverride = false, defaultLunch = false, defaultDinner = false, userJoinedDate }: { initialStatuses: MealStatus[], targetUserId?: string, adminOverride?: boolean, defaultLunch?: boolean, defaultDinner?: boolean, defaultSahri?: boolean, userJoinedDate?: Date }) {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const router = useRouter();
 

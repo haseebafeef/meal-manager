@@ -13,7 +13,7 @@ const SignupSchema = z.object({
     password: z.string().min(6),
 });
 
-export async function signup(prevState: { message: string } | undefined, formData: FormData) {
+export async function signup(prevState: unknown, formData: FormData): Promise<{ success?: string; error?: string }> {
     const validatedFields = SignupSchema.safeParse({
         name: formData.get('name'),
         email: formData.get('email'),
@@ -22,7 +22,7 @@ export async function signup(prevState: { message: string } | undefined, formDat
     });
 
     if (!validatedFields.success) {
-        return { message: 'Missing Fields. Failed to Create Account.' };
+        return { error: 'Missing Fields. Failed to Create Account.' };
     }
 
     const { name, email, phone, password } = validatedFields.data;
@@ -43,11 +43,10 @@ export async function signup(prevState: { message: string } | undefined, formDat
         });
     } catch (error) {
         console.error(error);
-        return { message: 'Database Error: Failed to Create User. (Email or Phone might already exist)' };
+        return { error: 'Database Error: Failed to Create User. (Email or Phone might already exist)' };
     }
 
     try {
-        // const redirect = false; // We can handle redirect manually or let it throw
         // We need to map 'email' or 'phone' to 'identifier' for the auth logic
         const loginData = new FormData();
         loginData.append('identifier', email || phone);
@@ -55,31 +54,33 @@ export async function signup(prevState: { message: string } | undefined, formDat
         loginData.append('redirectTo', '/dashboard'); // FORCE redirect
 
         await signIn('credentials', loginData);
+        return { success: 'Signup successful!' };
     } catch (error) {
         if (error instanceof AuthError) {
-            return { message: 'Something went wrong during auto-login.' };
+            return { error: 'Something went wrong during auto-login.' };
         }
         throw error;
     }
 }
 
 export async function authenticate(
-    prevState: { message: string } | undefined,
+    prevState: unknown,
     formData: FormData,
-) {
+): Promise<{ success?: string; error?: string }> {
     try {
         // Append explicit redirect
         if (!formData.has('redirectTo')) {
             formData.append('redirectTo', '/dashboard');
         }
         await signIn('credentials', formData);
+        return { success: 'Authentication successful!' };
     } catch (error) {
         if (error instanceof AuthError) {
             switch (error.type) {
                 case 'CredentialsSignin':
-                    return { message: 'Invalid credentials.' };
+                    return { error: 'Invalid credentials.' };
                 default:
-                    return { message: 'Something went wrong.' };
+                    return { error: 'Something went wrong.' };
             }
         }
         throw error;

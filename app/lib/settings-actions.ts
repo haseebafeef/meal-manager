@@ -45,10 +45,10 @@ export async function updateSystemSetting(key: string, value: string) {
         revalidatePath('/dashboard/meals');
         // Invalidate the cache tag
         revalidateTag('settings', 'default');
-        return { message: "Setting updated successfully" };
+        return { success: "Setting updated successfully" };
 
     } catch (error) {
         console.error("Failed to update setting:", error);
-        return { message: "Failed to update setting" };
+        return { error: "Failed to update setting" };
     }
 }

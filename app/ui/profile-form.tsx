@@ -11,26 +11,20 @@ import { User } from '@prisma/client';
 import Image from 'next/image';
 
 export default function ProfileForm({ user }: { user: User }) {
-    const [state, dispatch] = useActionState(updateProfile, { message: '' });
+    const [state, dispatch] = useActionState(updateProfile, { success: '', error: '' });
     const [success, setSuccess] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (state.message === 'Profile Updated Successfully!') {
-            // Use logical update to avoid immediate set if already true, 
-            // though standard set is fine. The warning "Calling setState synchronously"
-            // usually implies it happens during render, but this is useEffect.
-            // However, strictly, let's wrap in transition or timeout to be safe if that was the issue,
-            // or simply ensure dependencies are correct. 
-            // The linter might be flagging that we react to state.message immediately.
+        if (state.success === 'Profile Updated Successfully!') {
             const t = setTimeout(() => {
                 setSuccess(true);
             }, 0);
             const t2 = setTimeout(() => setSuccess(false), 3000);
             return () => { clearTimeout(t); clearTimeout(t2); };
         }
-    }, [state.message]);
+    }, [state.success]);
 
     // Handle Image Selection & Preview
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,7 +153,7 @@ export default function ProfileForm({ user }: { user: User }) {
             <SubmitButton label="Update Profile" />
 
             {success && <p className="text-green-600 text-sm">Saved!</p>}
-            {state.message && !success && <p className="text-red-600 text-sm">{state.message}</p>}
+            {state.error && !success && <p className="text-red-600 text-sm">{state.error}</p>}
         </form>
     );
 }

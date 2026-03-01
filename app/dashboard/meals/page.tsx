@@ -79,6 +79,8 @@ export default async function MealsPage() {
                     initialStatuses={statuses}
                     defaultLunch={currentUser.defaultLunchStatus}
                     defaultDinner={currentUser.defaultDinnerStatus}
+
+                    defaultSahri={currentUser.defaultSahriStatus}
                     userJoinedDate={currentUser.createdAt}
                 />
             </div>

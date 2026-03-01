@@ -4,20 +4,20 @@ import { useFormStatus } from 'react-dom';
 import { useActionState } from 'react';
 import { addMoneyByAdmin } from '@/app/lib/transaction-actions';
 import { Button } from './button';
-import { UserIcon, CurrencyDollarIcon, BanknotesIcon } from '@heroicons/react/24/outline';
+import { UserIcon, CurrencyDollarIcon, BanknotesIcon, ExclamationCircleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { useState, useEffect } from 'react';
 
 export default function AdminAddMoneyForm({ users }: { users: { id: string, name: string, email: string | null }[] }) {
-    const [message, dispatch] = useActionState(addMoneyByAdmin, undefined);
+    const [state, dispatch] = useActionState(addMoneyByAdmin, { success: '', error: '' });
     const [success, setSuccess] = useState(false);
 
     useEffect(() => {
-        if (message === 'Money added successfully!') {
+        if (state.success === 'Money added successfully!') {
             const t = setTimeout(() => setSuccess(true), 0);
             const t2 = setTimeout(() => setSuccess(false), 3000);
             return () => { clearTimeout(t); clearTimeout(t2); };
         }
-    }, [message]);
+    }, [state.success]);
 
     return (
         <form action={dispatch} className="space-y-2 md:space-y-2.5">
@@ -102,8 +102,20 @@ export default function AdminAddMoneyForm({ users }: { users: { id: string, name
 
             <SubmitButton />
 
-            {success && <p className="text-sm text-green-600 font-medium">Added successfully!</p>}
-            {message && !success && <p className="text-sm text-red-600">{message}</p>}
+            <div className="flex h-8 items-end space-x-1" aria-live="polite" aria-atomic="true">
+                {success && (
+                    <div className="flex items-center gap-1 text-green-600">
+                        <CheckCircleIcon className="h-5 w-5" />
+                        <p className="text-sm font-medium">Added successfully!</p>
+                    </div>
+                )}
+                {state.error && !success && (
+                    <div className="flex items-center gap-1 text-red-600">
+                        <ExclamationCircleIcon className="h-5 w-5" />
+                        <p className="text-sm">{state.error}</p>
+                    </div>
+                )}
+            </div>
         </form>
     );
 }

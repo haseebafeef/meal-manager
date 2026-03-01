@@ -8,16 +8,16 @@ import { KeyIcon } from '@heroicons/react/24/outline';
 import { useState, useEffect } from 'react';
 
 export default function SecurityForm({ hasPassword }: { hasPassword: boolean }) {
-    const [state, dispatch] = useActionState(updatePassword, { message: '' });
+    const [state, dispatch] = useActionState(updatePassword, { success: '', error: '' });
     const [success, setSuccess] = useState(false);
 
     useEffect(() => {
-        if (state.message === 'Password Updated Successfully!' || state.message === 'Password Set Successfully!') {
+        if (state.success === 'Password Updated Successfully!' || state.success === 'Password Set Successfully!') {
             const t = setTimeout(() => setSuccess(true), 0);
             const t2 = setTimeout(() => setSuccess(false), 3000);
             return () => { clearTimeout(t); clearTimeout(t2); };
         }
-    }, [state.message]);
+    }, [state.success]);
 
     return (
         <form action={dispatch} className="space-y-4">
@@ -61,7 +61,7 @@ export default function SecurityForm({ hasPassword }: { hasPassword: boolean }) 
             <SubmitButton label={hasPassword ? "Update Password" : "Set Password"} />
 
             {success && <p className="text-green-600 text-sm">Saved!</p>}
-            {state.message && !success && <p className="text-red-600 text-sm">{state.message}</p>}
+            {state.error && !success && <p className="text-red-600 text-sm">{state.error}</p>}
         </form>
     );
 }

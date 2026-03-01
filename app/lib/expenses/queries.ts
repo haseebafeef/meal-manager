@@ -2,9 +2,10 @@
 
 import { prisma } from '@/app/lib/prisma';
 import { getStartOfMonthDhaka, getNowDhaka } from '@/app/lib/utils';
-import { SETTINGS_KEYS, DEFAULT_SETTINGS, RAMADAN_CONFIG } from '@/app/lib/constants';
+import { SETTINGS_KEYS, DEFAULT_SETTINGS, RAMADAN_CONFIG, APP_LAUNCH, APP_LAUNCH_UTC } from '@/app/lib/constants';
 import { parseTimeToMinutes, formatMonthKey } from './utils';
 import { getMonthlyMealHistory } from '@/app/lib/meals';
+import { getSystemSettings } from '@/app/lib/settings-actions';
 
 export async function getExpenses() {
     const twentyDaysAgo = new Date();
@@ -59,13 +60,14 @@ export async function getSystemSummary() {
             },
             _sum: { amount: true }
         }),
+        // Bound to APP_LAUNCH_UTC to exclude stale or future-dated records outside the app lifetime
         prisma.expense.aggregate({
-            where: { date: { lt: queryStart } },
+            where: { date: { gte: APP_LAUNCH_UTC, lt: queryStart } },
             _sum: { amount: true }
         }),
         prisma.transaction.aggregate({
             where: {
-                createdAt: { lt: queryStart },
+                createdAt: { gte: APP_LAUNCH_UTC, lt: queryStart },
                 status: 'APPROVED'
             },
             _sum: { amount: true }
@@ -96,11 +98,11 @@ export async function getUserSummary(userId: string, existingSettingsMap?: Map<s
     startOfPrevMonthDhaka.setMonth(startOfPrevMonthDhaka.getMonth() - 1);
     // const queryStartPrevMonth = new Date(startOfPrevMonthDhaka.getTime() - 6 * 60 * 60 * 1000);
 
-    // 1. Fetch Settings (Use passed map or fetch new)
+    // 1. Fetch Settings (Use passed map or fetch cached)
     let settingsMap = existingSettingsMap;
     if (!settingsMap) {
-        const settings = await prisma.systemSettings.findMany();
-        settingsMap = new Map(settings.map(s => [s.key, s.value]));
+        const settingsRecord = await getSystemSettings();
+        settingsMap = new Map(Object.entries(settingsRecord));
     }
 
     const lunchCutoffStr = settingsMap.get(SETTINGS_KEYS.LUNCH_CUTOFF) || DEFAULT_SETTINGS[SETTINGS_KEYS.LUNCH_CUTOFF];
@@ -134,6 +136,11 @@ export async function getUserSummary(userId: string, existingSettingsMap?: Map<s
     });
 
     // 3. Current Month Credit
+    const nowDhaka = getNowDhaka();
+    const startOfCurrentMonthUTC = queryStartCurrentMonth;
+    const todayUTC = new Date(Date.UTC(nowDhaka.getUTCFullYear(), nowDhaka.getUTCMonth(), nowDhaka.getUTCDate()));
+    const endOfTodayUTC = new Date(todayUTC.getTime() + 24 * 60 * 60 * 1000 - 1);
+
     const currentMonthCreditData = await prisma.transaction.aggregate({
         where: {
             requesterId: userId,
@@ -144,8 +151,24 @@ export async function getUserSummary(userId: string, existingSettingsMap?: Map<s
     });
     const currentMonthCredit = currentMonthCreditData._sum.amount || 0;
 
-    // Gap Detection (Variables needed for logic below)
-    // const gapMealsMap = new Map<string, { count: number, year: number, monthNum: number }>();
+    // 4. Status & Meal Data for Current Month
+    const [monthMeals, initialStatusLog] = await Promise.all([
+        prisma.mealStatus.findMany({
+            where: {
+                userId: userId,
+                date: { gte: startOfCurrentMonthUTC, lte: endOfTodayUTC }
+            }
+        }),
+        prisma.userStatusLog.findFirst({
+            where: { userId, changedAt: { lt: startOfCurrentMonthUTC } },
+            orderBy: { changedAt: 'desc' }
+        })
+    ]);
+
+    const mealMap = new Map(monthMeals.map(m => [m.date.toISOString().split('T')[0], m]));
+    const userLogs = user?.statusLogs || [];
+    const initialStatus = initialStatusLog?.status || 'Active';
+
     let snapshotsCost = 0;
     let prevMonthDynamicCost = 0; // Legacy / Fallback
     let currentMonthDynamicCost = 0;
@@ -154,92 +177,64 @@ export async function getUserSummary(userId: string, existingSettingsMap?: Map<s
     // 4. Optimized Meal Calculation (Prisma Aggregation)
     // We use the database to sum up known records, and project defaults for missing days.
 
-    // A. Current Month Range
-    const startOfCurrentMonthUTC = new Date(startOfCurrentMonthDhaka.getTime() - 6 * 60 * 60 * 1000); // 18:00 Prev Day
-    // End of Current Month
-    const endOfCurrentMonthDhaka = new Date(startOfCurrentMonthDhaka);
-    endOfCurrentMonthDhaka.setMonth(endOfCurrentMonthDhaka.getMonth() + 1);
-    endOfCurrentMonthDhaka.setDate(0); // Last day
-    const endOfCurrentMonthUTC = new Date(endOfCurrentMonthDhaka.getTime() - 6 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000 - 1); // End of last day
+    // NOTE: The active cost is computed from passedMealCount below (after today's meals are evaluated).
 
-    // B. Aggregation
-    const currentMonthStats = await prisma.mealStatus.aggregate({
-        where: {
-            userId: userId,
-            date: {
-                gte: startOfCurrentMonthUTC,
-                lte: endOfCurrentMonthUTC
-            }
-        },
-        _sum: {
-            lunch: true,
-            dinner: true,
-            sahri: true
-        },
-        _count: {
-            _all: true
+    // 5. Calculate Passed Count (Status-Aware Projection)
+    let passedCount = 0;
+    let currentStatus = initialStatus;
+    let logIdx = 0;
+
+    const daysPassed = nowDhaka.getUTCDate();
+
+    for (let day = 1; day <= daysPassed; day++) {
+        const dateUTC = new Date(Date.UTC(nowDhaka.getFullYear(), nowDhaka.getMonth(), day));
+        const dateKey = dateUTC.toISOString().split('T')[0];
+        const dayEnd = new Date(dateUTC.getTime() + 24 * 60 * 60 * 1000 - 1);
+
+        // Update status for this day
+        while (logIdx < userLogs.length && userLogs[logIdx].changedAt <= dayEnd) {
+            currentStatus = userLogs[logIdx].status;
+            logIdx++;
         }
-    });
 
-    // C. Projection
-    const daysInMonth = endOfCurrentMonthDhaka.getDate();
-    const recordedDays = currentMonthStats._count._all;
-    const missingDays = Math.max(0, daysInMonth - recordedDays);
-    const dbMeals = (currentMonthStats._sum.lunch || 0) + (currentMonthStats._sum.dinner || 0) + (currentMonthStats._sum.sahri || 0);
+        const record = mealMap.get(dateKey);
+        const isToday = day === daysPassed;
 
-    // Default Projection (for missing days)
-    let projectedDefaultMeals = 0;
-    if (user?.status === 'Active') {
-        const defL = user.defaultLunchStatus ? 1 : 0;
-        const defD = user.defaultDinnerStatus ? 1 : 0;
-        const defS = user.defaultSahriStatus ? 1 : 0;
-        projectedDefaultMeals = missingDays * (defL + defD + defS);
+        // getNowDhaka() constructs a Date using Date.UTC(y, m, d, h, min, s) where y/m/d/h/min/s are
+        // the Dhaka local time components. So the Dhaka local hour is stored in the UTC fields.
+        // Therefore getUTCHours() correctly returns the Dhaka local hour here.
+        const currentHour = nowDhaka.getUTCHours(); // = Dhaka local hour (intentional)
+        const currentMinute = nowDhaka.getUTCMinutes(); // = Dhaka local minute (intentional)
+        const nowMins = currentHour * 60 + currentMinute;
+
+        const isSahri = RAMADAN_CONFIG ? (dateUTC >= new Date(RAMADAN_CONFIG.START) && dateUTC <= new Date(RAMADAN_CONFIG.END)) : false;
+
+        if (isToday) {
+            // Today logic: Only count if past cutoff
+            const tL = user?.defaultLunchStatus ? 1 : 0;
+            const tD = user?.defaultDinnerStatus ? 1 : 0;
+            const tS = (isSahri && user?.defaultSahriStatus) ? 1 : 0;
+
+            if (currentStatus === 'Active' || record) {
+                if (nowMins >= lunchCutoffMins) passedCount += (record ? record.lunch : (currentStatus === 'Active' ? tL : 0));
+                if (nowMins >= dinnerCutoffMins) passedCount += (record ? record.dinner : (currentStatus === 'Active' ? tD : 0));
+                if (nowMins >= sahriCutoffMins) passedCount += (record ? record.sahri : (currentStatus === 'Active' ? tS : 0));
+            }
+        } else {
+            // Past day logic
+            if (record) {
+                passedCount += (record.lunch ?? 0) + (record.dinner ?? 0) + (record.sahri ?? 0);
+            } else if (currentStatus === 'Active') {
+                const wasCreated = !user?.createdAt || user.createdAt <= dayEnd;
+                if (wasCreated) {
+                    const defL = user?.defaultLunchStatus ? 1 : 0;
+                    const defD = user?.defaultDinnerStatus ? 1 : 0;
+                    const defS = (isSahri && user?.defaultSahriStatus) ? 1 : 0;
+                    passedCount += defL + defD + defS;
+                }
+            }
+        }
     }
-
-    const totalProjectedMeals = dbMeals + projectedDefaultMeals;
-    currentMonthDynamicCost = totalProjectedMeals * currentRate;
-
-    // Passed Count (Approximation for Dashboard)
-    const nowDhaka = getNowDhaka();
-    const todayMidnightDhaka = new Date(Date.UTC(nowDhaka.getFullYear(), nowDhaka.getMonth(), nowDhaka.getDate()));
-
-    // So 'date' in DB corresponds to the day.
-    const passedStats = await prisma.mealStatus.aggregate({
-        where: {
-            userId: userId,
-            date: {
-                gte: startOfCurrentMonthUTC,
-                lt: todayMidnightDhaka // Strictly Before Today
-            }
-        },
-        _sum: { lunch: true, dinner: true, sahri: true }
-    });
-
-    let passedCount = (passedStats._sum.lunch || 0) + (passedStats._sum.dinner || 0) + (passedStats._sum.sahri || 0);
-
-    // Add Today's If Passed
-    const todayRecord = await prisma.mealStatus.findUnique({
-        where: {
-            date_userId: {
-                userId: userId,
-                date: todayMidnightDhaka
-            }
-        }
-    });
-
-    const currentHour = nowDhaka.getUTCHours();
-    const currentMinute = nowDhaka.getUTCMinutes();
-    const nowMins = currentHour * 60 + currentMinute;
-
-    const tL = todayRecord ? todayRecord.lunch : (user?.defaultLunchStatus ? 1 : 0);
-    const tD = todayRecord ? todayRecord.dinner : (user?.defaultDinnerStatus ? 1 : 0);
-    // Sahri Check for Today
-    const isSahriToday = RAMADAN_CONFIG ? (todayMidnightDhaka >= new Date(RAMADAN_CONFIG.START) && todayMidnightDhaka <= new Date(RAMADAN_CONFIG.END)) : false;
-    const tS = todayRecord ? todayRecord.sahri : (isSahriToday && user?.defaultSahriStatus ? 1 : 0);
-
-    if (nowMins >= lunchCutoffMins) passedCount += tL;
-    if (nowMins >= dinnerCutoffMins) passedCount += tD;
-    if (nowMins >= sahriCutoffMins) passedCount += tS;
 
     currentMonthPassedCount = passedCount;
 
@@ -302,11 +297,14 @@ export async function getBatchUserSummaries() {
     const prevMonthEndUTC = new Date(prevMonthEndDhaka.getTime() - 6 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000 - 1);
 
 
+    const settings = await getSystemSettings();
+
     // 2. Fetch ALL required data in Parallel
     const [
         users,
-        settings,
         allSnapshots,
+        currentMonthStatusLogs,
+        initialStatusLogs,
         prevMonthAggregates,
         pastMonthAggregates, // Strictly Past (< Today)
         todayAggregates      // Today Only
@@ -314,9 +312,17 @@ export async function getBatchUserSummaries() {
         prisma.user.findMany({
             select: { id: true, balance: true, status: true, defaultLunchStatus: true, defaultDinnerStatus: true, defaultSahriStatus: true, createdAt: true }
         }),
-        prisma.systemSettings.findMany(),
         prisma.monthlySnapshot.findMany({
             select: { userId: true, month: true, totalCost: true }
+        }),
+        prisma.userStatusLog.findMany({
+            where: { changedAt: { gte: currentMonthStartUTC } },
+            orderBy: { changedAt: 'asc' }
+        }),
+        prisma.userStatusLog.findMany({
+            where: { changedAt: { lt: currentMonthStartUTC } },
+            orderBy: { changedAt: 'desc' },
+            distinct: ['userId']
         }),
         // Previous Month Sums (Grouped by User)
         prisma.mealStatus.groupBy({
@@ -355,13 +361,13 @@ export async function getBatchUserSummaries() {
     ]);
 
     // 3. Process Settings
-    const settingsMap = new Map(settings.map(s => [s.key, s.value]));
-    const currentRate = parseFloat(settingsMap.get(SETTINGS_KEYS.MEAL_RATE) || DEFAULT_SETTINGS[SETTINGS_KEYS.MEAL_RATE]);
-    const prevRate = parseFloat(settingsMap.get(SETTINGS_KEYS.PREV_MEAL_RATE) || DEFAULT_SETTINGS[SETTINGS_KEYS.PREV_MEAL_RATE]);
+    const settingsMap = settings; // settings is already the cached record object
+    const currentRate = parseFloat(settingsMap[SETTINGS_KEYS.MEAL_RATE]);
+    const prevRate = parseFloat(settingsMap[SETTINGS_KEYS.PREV_MEAL_RATE]);
 
-    const lunchCutoffStr = settingsMap.get(SETTINGS_KEYS.LUNCH_CUTOFF) || DEFAULT_SETTINGS[SETTINGS_KEYS.LUNCH_CUTOFF];
-    const dinnerCutoffStr = settingsMap.get(SETTINGS_KEYS.DINNER_CUTOFF) || DEFAULT_SETTINGS[SETTINGS_KEYS.DINNER_CUTOFF];
-    const sahriCutoffStr = settingsMap.get(SETTINGS_KEYS.SAHRI_CUTOFF) || DEFAULT_SETTINGS[SETTINGS_KEYS.SAHRI_CUTOFF];
+    const lunchCutoffStr = settingsMap[SETTINGS_KEYS.LUNCH_CUTOFF];
+    const dinnerCutoffStr = settingsMap[SETTINGS_KEYS.DINNER_CUTOFF];
+    const sahriCutoffStr = settingsMap[SETTINGS_KEYS.SAHRI_CUTOFF];
 
     const lunchCutoffMins = parseTimeToMinutes(lunchCutoffStr);
     const dinnerCutoffMins = parseTimeToMinutes(dinnerCutoffStr);
@@ -377,7 +383,7 @@ export async function getBatchUserSummaries() {
     const userClosedMonths = new Map<string, Set<string>>();
     const userFixedCost = new Map<string, number>();
 
-    allSnapshots.forEach(s => {
+    allSnapshots.forEach((s) => {
         if (!userClosedMonths.has(s.userId)) userClosedMonths.set(s.userId, new Set());
         userClosedMonths.get(s.userId)?.add(s.month); // "YYYY-MM"
 
@@ -386,13 +392,23 @@ export async function getBatchUserSummaries() {
     });
 
     const prevAggMap = new Map();
-    prevMonthAggregates.forEach(a => prevAggMap.set(a.userId, a));
+    prevMonthAggregates.forEach((a) => prevAggMap.set(a.userId, a));
 
     const pastAggMap = new Map();
-    pastMonthAggregates.forEach(a => pastAggMap.set(a.userId, a));
+    pastMonthAggregates.forEach((a) => pastAggMap.set(a.userId, a));
 
     const todayAggMap = new Map();
-    todayAggregates.forEach(a => todayAggMap.set(a.userId, a));
+    todayAggregates.forEach((a) => todayAggMap.set(a.userId, a));
+
+    // Status Logs indexing
+    const statusLogsByUser = new Map<string, typeof currentMonthStatusLogs>();
+    currentMonthStatusLogs.forEach((log) => {
+        if (!statusLogsByUser.has(log.userId)) statusLogsByUser.set(log.userId, []);
+        statusLogsByUser.get(log.userId)?.push(log);
+    });
+
+    const initialStatusMap = new Map<string, string>();
+    initialStatusLogs.forEach((log) => initialStatusMap.set(log.userId, log.status));
 
     // 5. Calculate per User
     const results = new Map();
@@ -400,7 +416,7 @@ export async function getBatchUserSummaries() {
     const prevMonthKey = formatMonthKey(prevMonthStartUTC);
 
     // Current Month Days - PASSED only
-    const daysPassedInCurrentMonth = nowDhaka.getDate(); // 1-31
+    const daysPassedInCurrentMonth = nowDhaka.getUTCDate(); // 1-31
 
     for (const user of users) {
         // A. Fixed History
@@ -425,36 +441,76 @@ export async function getBatchUserSummaries() {
             const pastDbCount = pastAgg ? pastAgg._count._all : 0;
             const pastDbSum = pastAgg ? ((pastAgg._sum.lunch || 0) + (pastAgg._sum.dinner || 0) + (pastAgg._sum.sahri || 0)) : 0;
 
-            let pastProj = 0;
-            if (user.status === 'Active') {
-                const yesterdayDate = daysPassedInCurrentMonth - 1;
-                let effectiveStartDay = 1;
-                const currentMonthStart = new Date(currentMonthStartUTC);
-                if (user.createdAt && user.createdAt >= currentMonthStart) {
-                    const createdDhaka = new Date(user.createdAt.getTime() + 6 * 60 * 60 * 1000);
-                    effectiveStartDay = createdDhaka.getDate();
+            const userLogs = statusLogsByUser.get(user.id) || [];
+            let logIdx = 0;
+            const defTotal = (user.defaultLunchStatus ? 1 : 0) + (user.defaultDinnerStatus ? 1 : 0) + (user.defaultSahriStatus ? 1 : 0);
+
+            // Calculate status for each PAST day
+            for (let day = 1; day < daysPassedInCurrentMonth; day++) {
+                const dateUTC = new Date(Date.UTC(nowDhaka.getFullYear(), nowDhaka.getMonth(), day));
+                const dayEnd = new Date(dateUTC.getTime() + 24 * 60 * 60 * 1000 - 1);
+
+                // Update status up to the end of this day
+                while (logIdx < userLogs.length && userLogs[logIdx].changedAt <= dayEnd) {
+                    logIdx++;
+                }
+            }
+
+            // Simplified but status-aware active days count:
+            let activeDaysCount = 0;
+            let dayStatus = initialStatusMap.get(user.id) || 'Active';
+            let innerLogIdx = 0;
+
+            for (let d = 1; d < daysPassedInCurrentMonth; d++) {
+                const dEnd = new Date(Date.UTC(nowDhaka.getFullYear(), nowDhaka.getMonth(), d, 23, 59, 59, 999));
+                while (innerLogIdx < userLogs.length && userLogs[innerLogIdx].changedAt <= dEnd) {
+                    dayStatus = userLogs[innerLogIdx].status;
+                    innerLogIdx++;
                 }
 
-                let expectedDays = 0;
-                if (yesterdayDate >= effectiveStartDay) {
-                    expectedDays = yesterdayDate - effectiveStartDay + 1;
+                // Also check if user was created before/on this day
+                let wasCreated = true;
+                if (user.createdAt && user.createdAt > dEnd) {
+                    wasCreated = false;
                 }
-                const missingDays = Math.max(0, expectedDays - pastDbCount);
-                const defTotal = (user.defaultLunchStatus ? 1 : 0) + (user.defaultDinnerStatus ? 1 : 0) + (user.defaultSahriStatus ? 1 : 0);
-                pastProj = missingDays * defTotal;
+
+                if (dayStatus === 'Active' && wasCreated) {
+                    activeDaysCount++;
+                }
             }
+
+            const missingDays = Math.max(0, activeDaysCount - pastDbCount);
+            const pastProj = missingDays * defTotal;
 
             // Part 2: Today (Conditional)
             const todayAgg = todayAggMap.get(user.id);
             let todayCostItems = 0;
 
-            const tL = todayAgg ? todayAgg._sum.lunch : (user.defaultLunchStatus ? 1 : 0);
-            const tD = todayAgg ? todayAgg._sum.dinner : (user.defaultDinnerStatus ? 1 : 0);
-            const tS = todayAgg ? todayAgg._sum.sahri : (isSahriToday && user.defaultSahriStatus ? 1 : 0);
+            // Determine status for "Today" so far
+            let todayStatus = dayStatus;
+            while (innerLogIdx < userLogs.length && userLogs[innerLogIdx].changedAt <= nowDhaka) {
+                todayStatus = userLogs[innerLogIdx].status;
+                innerLogIdx++;
+            }
 
-            if (nowMins >= lunchCutoffMins) todayCostItems += tL;
-            if (nowMins >= dinnerCutoffMins) todayCostItems += tD;
-            if (nowMins >= sahriCutoffMins) todayCostItems += tS;
+            if (todayStatus === 'Active') {
+                const tL = todayAgg ? todayAgg._sum.lunch : (user.defaultLunchStatus ? 1 : 0);
+                const tD = todayAgg ? todayAgg._sum.dinner : (user.defaultDinnerStatus ? 1 : 0);
+                const tS = todayAgg ? todayAgg._sum.sahri : (isSahriToday && user.defaultSahriStatus ? 1 : 0);
+
+                if (nowMins >= lunchCutoffMins) todayCostItems += tL;
+                if (nowMins >= dinnerCutoffMins) todayCostItems += tD;
+                if (nowMins >= sahriCutoffMins) todayCostItems += tS;
+            } else if (todayAgg) {
+                // If inactive TODAY but HAS an explicit record, still count it if past cutoff
+                const tL = todayAgg._sum.lunch || 0;
+                const tD = todayAgg._sum.dinner || 0;
+                const tS = todayAgg._sum.sahri || 0;
+
+                if (nowMins >= lunchCutoffMins) todayCostItems += tL;
+                if (nowMins >= dinnerCutoffMins) todayCostItems += tD;
+                if (nowMins >= sahriCutoffMins) todayCostItems += tS;
+            }
 
             totalCost += (pastDbSum + pastProj + todayCostItems) * currentRate;
         }
@@ -610,4 +666,408 @@ export async function getMonthlySystemSummary(year: number, month: number) {
         remainingFund: remainingFund,
         totalMeals: totalMeals
     };
+}
+
+/**
+ * Returns a month-by-month system-wide summary from the app launch month up to today.
+ * Each row contains:
+ *   - monthKey (YYYY-MM), label (e.g. "February 2026")
+ *   - totalExpenses  — sum of all Expense.amount
+ *   - totalCredit    — sum of all approved Transaction deposits
+ *   - totalMeals     — total meals consumed across all users
+ *   - mealRate       — from MonthlySnapshot if finalized, else computed (ceil to 2dp)
+ *   - finalized      — true if a MonthlySnapshot row exists for this month
+ *   - netFund        — totalCredit - totalExpenses
+ * Results are newest-first.
+ */
+export async function getMonthlyHistorySummary(): Promise<{
+    monthKey: string;
+    label: string;
+    year: number;
+    monthNum: number;
+    totalExpenses: number;
+    totalCredit: number;
+    totalMeals: number;
+    mealRate: number;
+    finalized: boolean;
+    netFund: number;
+}[]> {
+    const LAUNCH_YEAR = APP_LAUNCH.year;
+    const LAUNCH_MONTH = APP_LAUNCH.month; // 1-indexed
+
+    const nowDhaka = getNowDhaka();
+    const currentYear = nowDhaka.getUTCFullYear();
+    const currentMonth = nowDhaka.getUTCMonth() + 1; // 1-indexed
+
+    // Build list of all months from launch to now (inclusive)
+    const months: { year: number; monthNum: number }[] = [];
+    let y = LAUNCH_YEAR;
+    let m = LAUNCH_MONTH;
+    while (y < currentYear || (y === currentYear && m <= currentMonth)) {
+        months.push({ year: y, monthNum: m });
+        m++;
+        if (m > 12) { m = 1; y++; }
+    }
+
+    // Fetch all snapshots once (O(1) lookup by month key)
+    const allSnapshots = await prisma.monthlySnapshot.findMany({
+        select: { month: true, mealRate: true, totalMeals: true, totalCost: true }
+    });
+    const snapshotMap = new Map(allSnapshots.map(s => [s.month, s]));
+
+    // Build results in parallel for each month
+    const results = await Promise.all(months.map(async ({ year, monthNum }) => {
+        const monthKey = `${year}-${String(monthNum).padStart(2, '0')}`;
+        const label = new Date(year, monthNum - 1, 1)
+            .toLocaleString('default', { month: 'long', year: 'numeric' });
+
+        // Meal records use UTC-midnight face-value dates
+        const mealStart = new Date(Date.UTC(year, monthNum - 1, 1));
+        const mealEnd = new Date(Date.UTC(year, monthNum, 0));        // last day of month, midnight UTC
+
+        // Expenses are stored with Dhaka-face-value = UTC - 6h
+        const expStart = new Date(mealStart.getTime() - 6 * 60 * 60 * 1000);
+        const expEnd = new Date(mealEnd.getTime() - 6 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000 - 1);
+
+        const [expAgg, creditAgg, mealAgg] = await Promise.all([
+            prisma.expense.aggregate({
+                where: { date: { gte: expStart, lte: expEnd } },
+                _sum: { amount: true }
+            }),
+            prisma.transaction.aggregate({
+                where: { createdAt: { gte: expStart, lte: expEnd }, status: 'APPROVED' },
+                _sum: { amount: true }
+            }),
+            prisma.mealStatus.aggregate({
+                where: { date: { gte: mealStart, lte: mealEnd } },
+                _sum: { lunch: true, dinner: true, sahri: true }
+            })
+        ]);
+
+        const totalExpenses = expAgg._sum.amount ?? 0;
+        const totalCredit = creditAgg._sum.amount ?? 0;
+        const totalMeals =
+            (mealAgg._sum.lunch ?? 0) +
+            (mealAgg._sum.dinner ?? 0) +
+            (mealAgg._sum.sahri ?? 0);
+
+        const snapshot = snapshotMap.get(monthKey);
+        const finalized = !!snapshot;
+
+        // Rate: use finalized snapshot's stored rate, else compute from actuals (always ceil up)
+        let mealRate = 0;
+        if (snapshot) {
+            mealRate = snapshot.mealRate;
+        } else if (totalMeals > 0) {
+            mealRate = Math.ceil((totalExpenses / totalMeals) * 100) / 100;
+        }
+
+        return {
+            monthKey,
+            label,
+            year,
+            monthNum,
+            totalExpenses,
+            totalCredit,
+            totalMeals,
+            mealRate,
+            finalized,
+            netFund: totalCredit - totalExpenses,
+        };
+    }));
+
+    // Newest month first
+    return results.reverse();
+}
+
+/**
+ * Per-user monthly breakdown — for the history page individual summary.
+ *
+ * For each month since app launch, returns one row per user with:
+ *   - totalMeals  : meals consumed that month
+ *   - totalCost   : cost charged (from snapshot if finalized, else meals × currentRate)
+ *   - mealRate    : the rate used
+ *   - credit      : approved deposits that month
+ *   - netDelta    : credit - totalCost (positive = user topped up more than cost)
+ *   - finalized   : whether a MonthlySnapshot exists
+ *
+ * Result shape: months[] (newest first), each with users[].
+ */
+export async function getUserMonthlyBreakdowns(): Promise<{
+    monthKey: string;
+    label: string;
+    year: number;
+    monthNum: number;
+    users: {
+        userId: string;
+        userName: string;
+        totalMeals: number;
+        totalCost: number;
+        mealRate: number;
+        credit: number;
+        netDelta: number;
+        finalized: boolean;
+    }[];
+}[]> {
+    const LAUNCH_YEAR = APP_LAUNCH.year;
+    const LAUNCH_MONTH = APP_LAUNCH.month; // 1-indexed
+
+    const nowDhaka = getNowDhaka();
+    const currentYear = nowDhaka.getUTCFullYear();
+    const currentMonth = nowDhaka.getUTCMonth() + 1;
+
+    // All months from launch to today
+    const months: { year: number; monthNum: number }[] = [];
+    let y = LAUNCH_YEAR, m = LAUNCH_MONTH;
+    while (y < currentYear || (y === currentYear && m <= currentMonth)) {
+        months.push({ year: y, monthNum: m });
+        m++; if (m > 12) { m = 1; y++; }
+    }
+
+    // Fetch all users once
+    const allUsers = await prisma.user.findMany({
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+    });
+
+    // Fetch all snapshots once (indexed by userId+monthKey)
+    const allSnapshots = await prisma.monthlySnapshot.findMany({
+        select: { userId: true, month: true, totalMeals: true, totalCost: true, mealRate: true },
+    });
+    const snapIndex = new Map<string, typeof allSnapshots[0]>();
+    allSnapshots.forEach(s => snapIndex.set(`${s.userId}|${s.month}`, s));
+
+    // Fetch system settings for current rate (used for non-finalized months)
+    const settings = await prisma.systemSettings.findMany();
+    const settingsMap = new Map(settings.map(s => [s.key, s.value]));
+    const currentRate = parseFloat(settingsMap.get(SETTINGS_KEYS.MEAL_RATE) || DEFAULT_SETTINGS[SETTINGS_KEYS.MEAL_RATE]);
+
+    // Build result month-by-month
+    const results = await Promise.all(months.map(async ({ year, monthNum }) => {
+        const monthKey = `${year}-${String(monthNum).padStart(2, '0')}`;
+        const label = new Date(year, monthNum - 1, 1)
+            .toLocaleString('default', { month: 'long', year: 'numeric' });
+
+        // Meal boundaries (UTC midnight face-value)
+        const mealStart = new Date(Date.UTC(year, monthNum - 1, 1));
+        const mealEnd = new Date(Date.UTC(year, monthNum, 0));
+
+        // Transaction boundaries: Dhaka = UTC - 6h
+        const txStart = new Date(mealStart.getTime() - 6 * 60 * 60 * 1000);
+        const txEnd = new Date(mealEnd.getTime() - 6 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000 - 1);
+
+        // Fetch credit deposits for ALL users this month in one query
+        const txRows = await prisma.transaction.groupBy({
+            by: ['requesterId'],
+            where: {
+                createdAt: { gte: txStart, lte: txEnd },
+                status: 'APPROVED',
+            },
+            _sum: { amount: true },
+        });
+        const creditByUser = new Map<string, number>(
+            txRows.map(r => [r.requesterId!, r._sum.amount ?? 0])
+        );
+
+        // Fetch meal aggregates for ALL users this month in one query (for open months)
+        const mealRows = await prisma.mealStatus.groupBy({
+            by: ['userId'],
+            where: { date: { gte: mealStart, lte: mealEnd } },
+            _sum: { lunch: true, dinner: true, sahri: true },
+        });
+        const mealsByUser = new Map<string, number>(
+            mealRows.map(r => [
+                r.userId,
+                (r._sum.lunch ?? 0) + (r._sum.dinner ?? 0) + (r._sum.sahri ?? 0),
+            ])
+        );
+
+        // Build per-user rows
+        const userRows = allUsers.map(u => {
+            const snapKey = `${u.id}|${monthKey}`;
+            const snap = snapIndex.get(snapKey);
+            const finalized = !!snap;
+
+            const totalMeals = snap ? snap.totalMeals : (mealsByUser.get(u.id) ?? 0);
+            const mealRate = snap ? snap.mealRate : currentRate;
+            const totalCost = snap ? snap.totalCost : totalMeals * currentRate;
+            const credit = creditByUser.get(u.id) ?? 0;
+            const netDelta = credit - totalCost;
+
+            return {
+                userId: u.id,
+                userName: u.name ?? '(unknown)',
+                totalMeals,
+                totalCost,
+                mealRate,
+                credit,
+                netDelta,
+                finalized,
+            };
+        });
+
+        return { monthKey, label, year, monthNum, users: userRows };
+    }));
+
+    return results.reverse(); // newest first
+}
+
+/**
+ * Single-user month-by-month history with running balance carry-forward.
+ * Columns: prevBalance | totalCredit | totalMeals | mealRate | totalCost
+ * Newest month first.
+ */
+export async function getSelfMonthlyHistory(userId: string): Promise<{
+    monthKey: string;
+    label: string;
+    prevBalance: number;
+    totalCredit: number;
+    totalMeals: number;
+    mealRate: number;
+    totalCost: number;
+    closingBalance: number;
+    finalized: boolean;
+}[]> {
+    const LAUNCH_YEAR = APP_LAUNCH.year;
+    const LAUNCH_MONTH = APP_LAUNCH.month;
+
+    const nowDhaka = getNowDhaka();
+    const currentYear = nowDhaka.getUTCFullYear();
+    const currentMonth = nowDhaka.getUTCMonth() + 1;
+
+    const months: { year: number; monthNum: number }[] = [];
+    let y = LAUNCH_YEAR, m = LAUNCH_MONTH;
+    while (y < currentYear || (y === currentYear && m <= currentMonth)) {
+        months.push({ year: y, monthNum: m });
+        m++; if (m > 12) { m = 1; y++; }
+    }
+
+    // 1. Bulk fetch all relevant data
+    const [snapshots, allTransactions, allMeals, allStatusLogs, initialStatusLog, userData, settings] = await Promise.all([
+        prisma.monthlySnapshot.findMany({
+            where: { userId },
+            select: { month: true, totalMeals: true, totalCost: true, mealRate: true },
+        }),
+        prisma.transaction.findMany({
+            where: { requesterId: userId, status: 'APPROVED', createdAt: { gte: APP_LAUNCH_UTC } },
+            select: { amount: true, createdAt: true }
+        }),
+        prisma.mealStatus.findMany({
+            where: { userId, date: { gte: APP_LAUNCH_UTC } },
+            select: { lunch: true, dinner: true, sahri: true, date: true }
+        }),
+        prisma.userStatusLog.findMany({
+            where: { userId, changedAt: { gte: APP_LAUNCH_UTC } },
+            orderBy: { changedAt: 'asc' }
+        }),
+        prisma.userStatusLog.findFirst({
+            where: { userId, changedAt: { lt: APP_LAUNCH_UTC } },
+            orderBy: { changedAt: 'desc' }
+        }),
+        prisma.user.findUnique({
+            where: { id: userId },
+            select: { createdAt: true, defaultLunchStatus: true, defaultDinnerStatus: true, defaultSahriStatus: true }
+        }),
+        getSystemSettings()
+    ]);
+
+    const snapMap = new Map(snapshots.map(s => [s.month, s]));
+    const settingsMap = settings;
+    const currentRate = parseFloat(settingsMap[SETTINGS_KEYS.MEAL_RATE]);
+    const prevRate = parseFloat(settingsMap[SETTINGS_KEYS.PREV_MEAL_RATE]);
+
+    let runningBalance = 0;
+
+    // 2. Process months newest to oldest requires computing running balance oldest to newest first
+    const rows = months.map(({ year, monthNum }) => {
+        const monthKey = `${year}-${String(monthNum).padStart(2, '0')}`;
+        const label = new Date(year, monthNum - 1, 1)
+            .toLocaleString('default', { month: 'long', year: 'numeric' });
+
+        const mealStart = new Date(Date.UTC(year, monthNum - 1, 1));
+        const mealEnd = new Date(Date.UTC(year, monthNum, 0));
+        const txStart = new Date(mealStart.getTime() - 6 * 60 * 60 * 1000);
+        const txEnd = new Date(mealEnd.getTime() - 6 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000 - 1);
+
+        // Filter transactions for this month
+        const totalCredit = allTransactions
+            .filter(tx => tx.createdAt >= txStart && tx.createdAt <= txEnd)
+            .reduce((sum, tx) => sum + tx.amount, 0);
+
+        const snap = snapMap.get(monthKey);
+        const finalized = !!snap;
+
+        let totalMeals: number;
+        let mealRate: number;
+        let totalCost: number;
+
+        if (snap) {
+            totalMeals = snap.totalMeals;
+            mealRate = snap.mealRate;
+            totalCost = snap.totalCost;
+        } else {
+            // Filter meals for this month
+            const monthMeals = allMeals.filter(m => {
+                const d = m.date;
+                return d >= mealStart && d <= mealEnd;
+            });
+            const mealMap = new Map(monthMeals.map(m => [m.date.toISOString().split('T')[0], m]));
+
+            const isCurrentM = year === currentYear && monthNum === currentMonth;
+            const daysToProcess = isCurrentM ? nowDhaka.getUTCDate() : mealEnd.getUTCDate();
+
+            totalMeals = 0;
+
+            // Determine status at start of month
+            const logsBeforeMonth = (allStatusLogs as { changedAt: Date, status: string }[]).filter(l => l.changedAt < mealStart);
+            const monthStartStatus = logsBeforeMonth.length > 0
+                ? logsBeforeMonth[logsBeforeMonth.length - 1].status
+                : (initialStatusLog?.status || 'Active');
+
+            let currentStatus = monthStartStatus;
+            const monthLogs = (allStatusLogs as { changedAt: Date, status: string }[]).filter(l => l.changedAt >= mealStart && l.changedAt <= mealEnd);
+            let logIdx = 0;
+
+            for (let day = 1; day <= daysToProcess; day++) {
+                const dateUTC = new Date(Date.UTC(year, monthNum - 1, day));
+                const dateKey = dateUTC.toISOString().split('T')[0];
+                const dayEnd = new Date(dateUTC.getTime() + 24 * 60 * 60 * 1000 - 1);
+
+                while (logIdx < monthLogs.length && monthLogs[logIdx].changedAt <= dayEnd) {
+                    currentStatus = monthLogs[logIdx].status;
+                    logIdx++;
+                }
+
+                const record = mealMap.get(dateKey);
+                if (record) {
+                    totalMeals += (record.lunch ?? 0) + (record.dinner ?? 0) + (record.sahri ?? 0);
+                } else if (currentStatus === 'Active') {
+                    // Check if user was already created
+                    const wasCreated = !userData?.createdAt || userData.createdAt <= dayEnd;
+                    if (wasCreated) {
+                        const defL = userData?.defaultLunchStatus ? 1 : 0;
+                        const defD = userData?.defaultDinnerStatus ? 1 : 0;
+                        const isSahri = RAMADAN_CONFIG ? (dateUTC >= new Date(RAMADAN_CONFIG.START) && dateUTC <= new Date(RAMADAN_CONFIG.END)) : false;
+                        const defS = (isSahri && userData?.defaultSahriStatus) ? 1 : 0;
+                        totalMeals += defL + defD + defS;
+                    }
+                }
+            }
+
+            mealRate = isCurrentM ? currentRate : prevRate;
+            totalCost = parseFloat((totalMeals * mealRate).toFixed(2));
+        }
+
+        return { monthKey, label, totalCredit, totalMeals, mealRate, totalCost, finalized };
+    });
+
+    // 3. Compute running balance oldest → newest
+    const result = rows.map(row => {
+        const prevBalance = runningBalance;
+        const closingBalance = parseFloat((prevBalance + row.totalCredit - row.totalCost).toFixed(2));
+        runningBalance = closingBalance;
+        return { ...row, prevBalance, closingBalance };
+    });
+
+    return result.reverse();
 }

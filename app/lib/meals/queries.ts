@@ -53,13 +53,9 @@ export async function getMealStatus(targetUserId?: string) {
 }
 
 export async function getDailyMealStats(date?: Date) {
-    const now = date || new Date();
-    // Local Time logic for "Today"
-    const dhakaTimeStr = now.toLocaleString("en-US", { timeZone: "Asia/Dhaka" });
-    const dhakaDate = new Date(dhakaTimeStr);
-
-    // Local Today Midnight (in UTC representation for DB)
-    const targetDate = new Date(Date.UTC(dhakaDate.getFullYear(), dhakaDate.getMonth(), dhakaDate.getDate()));
+    // If a specific date is provided, shift it to Dhaka. Otherwise use common nowDhaka.
+    const baseDate = date ? new Date(date.toLocaleString("en-US", { timeZone: "Asia/Dhaka" })) : getNowDhaka();
+    const targetDate = new Date(Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth(), baseDate.getUTCDate()));
 
     const allUsers = await prisma.user.findMany({
         select: {
@@ -222,14 +218,14 @@ export async function getMonthlyMealHistory(year: number, month: number) {
     // Business rule helper to determine if a record represents a past, today, or future event.
     const isDayPast = (d: Date) => {
         // d is UTC midnight.
-        const todayUTC = new Date(Date.UTC(nowDhaka.getFullYear(), nowDhaka.getMonth(), nowDhaka.getDate()));
+        const todayUTC = new Date(Date.UTC(nowDhaka.getUTCFullYear(), nowDhaka.getUTCMonth(), nowDhaka.getUTCDate()));
 
         if (d.getTime() < todayUTC.getTime()) return 'PAST';
         if (d.getTime() > todayUTC.getTime()) return 'FUTURE';
         return 'TODAY';
     };
 
-    const currentMins = nowDhaka.getHours() * 60 + nowDhaka.getMinutes();
+    const currentMins = nowDhaka.getUTCHours() * 60 + nowDhaka.getUTCMinutes();
 
     // --- Calculate User Activation Date ---
     // Rule: User is inactive until their First Meal Order (lunch>0 or dinner>0) 

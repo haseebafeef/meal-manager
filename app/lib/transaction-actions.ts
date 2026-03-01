@@ -21,10 +21,10 @@ const AdminAddMoneySchema = z.object({
     note: z.string().optional(),
 });
 
-export async function createBalanceRequest(prevState: { message: string } | undefined, formData: FormData) {
+export async function createBalanceRequest(prevState: unknown, formData: FormData): Promise<{ success?: string; error?: string }> {
     const session = await auth();
     if (!session?.user?.email) {
-        return { message: "You must be logged in." };
+        return { error: "You must be logged in." };
     }
 
     // Get current user ID from DB to be safe
@@ -32,8 +32,8 @@ export async function createBalanceRequest(prevState: { message: string } | unde
         where: { email: session.user.email }
     });
 
-    if (!sender) return { message: "User not found." };
-    if (sender.status !== 'Active') return { message: "Your account is inactive." };
+    if (!sender) return { error: "User not found." };
+    if (sender.status !== 'Active') return { error: "Your account is inactive." };
 
     const validatedFields = TransactionSchema.safeParse({
         amount: formData.get('amount'),
@@ -43,7 +43,7 @@ export async function createBalanceRequest(prevState: { message: string } | unde
     });
 
     if (!validatedFields.success) {
-        return { message: 'Invalid input. Please check all fields.' };
+        return { error: 'Invalid input. Please check all fields.' };
     }
 
     const { amount, receiverId, paymentMethod, note } = validatedFields.data;
@@ -53,7 +53,7 @@ export async function createBalanceRequest(prevState: { message: string } | unde
         where: { id: receiverId }
     });
 
-    if (!receiver) return { message: 'Receiver not found.' };
+    if (!receiver) return { error: 'Receiver not found.' };
 
     try {
         await prisma.transaction.create({
@@ -69,25 +69,25 @@ export async function createBalanceRequest(prevState: { message: string } | unde
         });
     } catch (error) {
         console.error(error);
-        return { message: 'Database Error: Failed to Create Request.' };
+        return { error: 'Database Error: Failed to Create Request.' };
     }
 
     revalidatePath('/dashboard');
-    return { message: 'Request processed successfully.' };
+    return { success: 'Request processed successfully.' };
 }
 
 
 
-export async function addMoneyByAdmin(prevState: string | undefined, formData: FormData) {
+export async function addMoneyByAdmin(prevState: unknown, formData: FormData): Promise<{ success?: string; error?: string }> {
     const session = await auth();
-    if (!session?.user?.email) return "Not authenticated";
+    if (!session?.user?.email) return { error: "Not authenticated" };
 
     const adminUser = await prisma.user.findUnique({
         where: { email: session.user.email }
     });
 
     if (!adminUser || !adminUser.isAdmin) {
-        return "Unauthorized: Admin access required.";
+        return { error: "Unauthorized: Admin access required." };
     }
 
     const validated = AdminAddMoneySchema.safeParse({
@@ -97,12 +97,12 @@ export async function addMoneyByAdmin(prevState: string | undefined, formData: F
         note: formData.get('note'),
     });
 
-    if (!validated.success) return "Invalid input data.";
+    if (!validated.success) return { error: "Invalid input data." };
 
     const { userId, amount, paymentMethod, note } = validated.data;
 
     const targetUser = await prisma.user.findUnique({ where: { id: userId } });
-    if (!targetUser) return "User not found.";
+    if (!targetUser) return { error: "User not found." };
 
     try {
         await prisma.$transaction(async (tx) => {
@@ -132,24 +132,27 @@ export async function addMoneyByAdmin(prevState: string | undefined, formData: F
         });
     } catch (error) {
         console.error("Admin Add Money Error:", error);
-        return "Database Error: Failed to add money.";
+        return { error: "Database Error: Failed to add money." };
     }
 
     revalidatePath('/dashboard');
     await syncUserStatus(userId);
-    return "Money added successfully!";
+    return { success: "Money added successfully!" };
 }
 
 
 export async function getUsers() {
+    const session = await auth();
+    if (!session?.user?.email) return [];
     return await prisma.user.findMany({
-        select: { id: true, name: true, email: true }
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
     });
 }
 
-export async function approveRequest(formData: FormData) {
+export async function approveRequest(formData: FormData): Promise<{ success?: string; error?: string }> {
     const session = await auth(); // Need to verify user is the approver
-    if (!session?.user?.email) return;
+    if (!session?.user?.email) return { error: "Not authenticated" };
 
     const id = formData.get('id') as string;
 
@@ -159,13 +162,11 @@ export async function approveRequest(formData: FormData) {
         include: { requester: true, approver: true }
     });
 
-    if (!tx || tx.status !== 'PENDING') return;
+    if (!tx || tx.status !== 'PENDING') return { error: "Invalid request or already processed." };
 
     // Verify current user is the approver
-    if (tx.approver.email !== session.user.email) return;
+    if (tx.approver.email !== session.user.email) return { error: 'Unauthorized.' };
 
-    // Finalize the balance request by marking it approved and incrementing the user's balance.
-    // The transaction and balance update are executed atomically.
     try {
         await prisma.$transaction([
             prisma.transaction.update({
@@ -179,26 +180,33 @@ export async function approveRequest(formData: FormData) {
         ]);
     } catch (e) {
         console.error("Failed to approve transaction", e);
-        return { message: "Failed" };
+        return { error: "Database Error: Approval failed." };
     }
 
     revalidatePath('/dashboard');
     await syncUserStatus(tx.requesterId);
+    return { success: "Request approved!" };
 }
 
-export async function declineRequest(formData: FormData) {
+export async function declineRequest(formData: FormData): Promise<{ success?: string; error?: string }> {
     const session = await auth();
-    if (!session?.user?.email) return;
+    if (!session?.user?.email) return { error: "Not authenticated" };
 
     const id = formData.get('id') as string;
 
     const tx = await prisma.transaction.findUnique({ where: { id }, include: { approver: true } });
-    if (!tx || tx.status !== 'PENDING' || tx.approver.email !== session.user.email) return;
+    if (!tx || tx.status !== 'PENDING' || tx.approver.email !== session.user.email) return { error: "Invalid request or unauthorized." };
 
-    await prisma.transaction.update({
-        where: { id },
-        data: { status: 'DECLINED' }
-    });
+    try {
+        await prisma.transaction.update({
+            where: { id },
+            data: { status: 'DECLINED' }
+        });
+    } catch (e) {
+        console.error(e);
+        return { error: "Database Error: Declining failed." };
+    }
 
     revalidatePath('/dashboard');
+    return { success: "Request declined." };
 }

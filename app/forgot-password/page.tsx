@@ -8,11 +8,11 @@ import { AtSymbolIcon, ArrowLeftIcon, ExclamationCircleIcon, CheckCircleIcon } f
 import Link from 'next/link';
 import { Button } from '@/app/ui/button';
 
-const initialState: AuthState = { message: '' };
+const initialState: AuthState = {};
 
 export default function ForgotPasswordPage() {
     const [step, setStep] = useState<'IDENTIFY' | 'VERIFY' | 'ATTACH' | 'SUCCESS'>('IDENTIFY');
-    const [context, setContext] = useState<{ userId?: string, mask?: string, message?: string }>({});
+    const [context, setContext] = useState<{ userId?: string, mask?: string, success?: string, error?: string }>({});
 
     // Actions
     const [findState, findAction] = useActionState(findAccount, initialState);
@@ -24,7 +24,7 @@ export default function ForgotPasswordPage() {
         if (findState?.status === 'EMAIL_SENT') {
             // Use setTimeout to avoid synchronous state update warning (cascading render)
             setTimeout(() => {
-                setContext({ message: findState.message });
+                setContext({ success: findState.success });
                 setStep('SUCCESS');
             }, 0);
         } else if (findState?.status === 'FOUND_WITH_EMAIL' && findState.data) {
@@ -34,7 +34,7 @@ export default function ForgotPasswordPage() {
             }, 0);
         } else if (findState?.status === 'FOUND_NO_EMAIL' && findState.data) {
             setTimeout(() => {
-                setContext({ userId: findState.data!.userId, message: findState.message });
+                setContext({ userId: findState.data!.userId, error: findState.error });
                 setStep('ATTACH');
             }, 0);
         }
@@ -43,7 +43,7 @@ export default function ForgotPasswordPage() {
     useEffect(() => {
         if (verifyState?.status === 'EMAIL_SENT') {
             setTimeout(() => {
-                setContext(prev => ({ ...prev, message: verifyState.message }));
+                setContext(prev => ({ ...prev, success: verifyState.success }));
                 setStep('SUCCESS');
             }, 0);
         }
@@ -52,7 +52,7 @@ export default function ForgotPasswordPage() {
     useEffect(() => {
         if (attachState?.status === 'EMAIL_SENT') {
             setTimeout(() => {
-                setContext(prev => ({ ...prev, message: attachState.message }));
+                setContext(prev => ({ ...prev, success: attachState.success }));
                 setStep('SUCCESS');
             }, 0);
         }
@@ -92,7 +92,7 @@ export default function ForgotPasswordPage() {
                                 </div>
                             </div>
                             <SubmitButton label="Find Account" />
-                            <ErrorMessage message={findState?.message} />
+                            <ErrorMessage error={findState?.error} success={findState?.success} />
                         </form>
                     )}
 
@@ -120,7 +120,7 @@ export default function ForgotPasswordPage() {
                                 </div>
                             </div>
                             <SubmitButton label="Verify & Send Link" />
-                            <ErrorMessage message={verifyState?.message} />
+                            <ErrorMessage error={verifyState?.error} success={verifyState?.success} />
                             <button type="button" onClick={() => setStep('IDENTIFY')} className="w-full text-center text-xs text-gray-500 mt-2 hover:underline">
                                 Start Over
                             </button>
@@ -134,7 +134,7 @@ export default function ForgotPasswordPage() {
                             <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg flex items-start gap-3 mb-4">
                                 <ExclamationCircleIcon className="w-5 h-5 text-yellow-600 dark:text-yellow-500 shrink-0" />
                                 <p className="text-xs text-yellow-700 dark:text-yellow-400">
-                                    {context.message || "This account has no email attached."}
+                                    {context.error || "This account has no email attached."}
                                 </p>
                             </div>
                             <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
@@ -156,7 +156,7 @@ export default function ForgotPasswordPage() {
                                 </div>
                             </div>
                             <SubmitButton label="Attach & Send Link" />
-                            <ErrorMessage message={attachState?.message} />
+                            <ErrorMessage error={attachState?.error} success={attachState?.success} />
                             <button type="button" onClick={() => setStep('IDENTIFY')} className="w-full text-center text-xs text-gray-500 mt-2 hover:underline">
                                 Start Over
                             </button>
@@ -168,7 +168,7 @@ export default function ForgotPasswordPage() {
                         <div className="text-center py-4">
                             <CheckCircleIcon className="w-16 h-16 text-green-500 mx-auto mb-4" />
                             <p className="text-green-700 dark:text-green-400 font-medium mb-2">
-                                {context.message}
+                                {context.success}
                             </p>
                             <p className="text-sm text-gray-500 mb-6">
                                 Please check your inbox (and spam folder) for the reset link.
@@ -202,16 +202,20 @@ function SubmitButton({ label }: { label: string }) {
     );
 }
 
-function ErrorMessage({ message }: { message?: string }) {
-    if (!message) return null;
+function ErrorMessage({ error, success }: { error?: string, success?: string }) {
+    if (success) {
+        return (
+            <div className="flex h-8 items-end space-x-1" aria-live="polite" aria-atomic="true">
+                <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                <p className="text-sm text-green-500">{success}</p>
+            </div>
+        );
+    }
+    if (!error) return null;
     return (
         <div className="flex h-8 items-end space-x-1" aria-live="polite" aria-atomic="true">
-            {!message.includes('sent') && (
-                <>
-                    <ExclamationCircleIcon className="h-5 w-5 text-red-500" />
-                    <p className="text-sm text-red-500">{message}</p>
-                </>
-            )}
+            <ExclamationCircleIcon className="h-5 w-5 text-red-500" />
+            <p className="text-sm text-red-500">{error}</p>
         </div>
     );
 }

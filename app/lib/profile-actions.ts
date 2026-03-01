@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
 import bcrypt from 'bcryptjs';
 import sharp from 'sharp';
+import { put } from '@vercel/blob';
 
 import { prisma } from '@/app/lib/prisma';
 
@@ -15,16 +16,10 @@ const ProfileSchema = z.object({
     phone: z.string().min(10),
 });
 
-
-
-import { put } from '@vercel/blob';
-
-
-
 // Update user profile information including name, email, phone, AND image.
-export async function updateProfile(prevState: { message: string } | undefined, formData: FormData) {
+export async function updateProfile(prevState: unknown, formData: FormData): Promise<{ success?: string; error?: string }> {
     const session = await auth();
-    if (!session?.user) return { message: "Not authenticated" };
+    if (!session?.user) return { error: "Not authenticated" };
 
     const userId = session.user.id;
     const userEmail = session.user.email;
@@ -38,7 +33,7 @@ export async function updateProfile(prevState: { message: string } | undefined, 
         phone: formData.get('phone'),
     });
 
-    if (!validatedFields.success) return { message: "Invalid Fields" };
+    if (!validatedFields.success) return { error: "Invalid Fields" };
 
     const { name, nickname, email, phone } = validatedFields.data;
     const emailToSave = email === '' ? null : email;
@@ -64,17 +59,12 @@ export async function updateProfile(prevState: { message: string } | undefined, 
             imageUrl = blob.url;
         } catch (error) {
             console.error('Image upload/compression failed:', error);
-            // Fallback: Upload original if sharp fails for some reason, or just error out?
-            // Safer to just error log and continue or fail? 
-            // Let's try to upload original as fallback or just fail.
-            // Failing is better to avoid massive files if that's the goal.
-            return { message: "Failed to process image." };
+            return { error: "Failed to process image." };
         }
     }
 
     try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const updateData: any = {
+        const updateData: { name: string; nickname?: string | null; email?: string | null; phone: string; image?: string } = {
             name,
             nickname: nicknameToSave,
             email: emailToSave,
@@ -91,30 +81,30 @@ export async function updateProfile(prevState: { message: string } | undefined, 
         });
     } catch (error) {
         console.error(error);
-        return { message: "Database Error: Phone or Email might be used by another account." };
+        return { error: "Database Error: Phone or Email might be used by another account." };
     }
 
     revalidatePath('/dashboard');
-    return { message: "Profile Updated Successfully!" };
+    return { success: "Profile Updated Successfully!" };
 }
 
-export async function updatePassword(prevState: { message: string } | undefined, formData: FormData) {
+export async function updatePassword(prevState: unknown, formData: FormData): Promise<{ success?: string; error?: string }> {
     const session = await auth();
-    if (!session?.user?.email) return { message: "Not authenticated" };
+    if (!session?.user?.email) return { error: "Not authenticated" };
 
     const currentPassword = formData.get('currentPassword') as string;
     const newPassword = formData.get('newPassword') as string;
 
-    if (!newPassword || newPassword.length < 6) return { message: "New password must be at least 6 characters." };
+    if (!newPassword || newPassword.length < 6) return { error: "New password must be at least 6 characters." };
 
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-    if (!user) return { message: "User not found" };
+    if (!user) return { error: "User not found" };
 
     if (user.password) {
         // User has a password, so current password is required
-        if (!currentPassword) return { message: "Current password is required." };
+        if (!currentPassword) return { error: "Current password is required." };
         const match = await bcrypt.compare(currentPassword, user.password);
-        if (!match) return { message: "Current password incorrect" };
+        if (!match) return { error: "Current password incorrect" };
     }
 
     const hashed = await bcrypt.hash(newPassword, 10);
@@ -124,29 +114,29 @@ export async function updatePassword(prevState: { message: string } | undefined,
     });
 
     revalidatePath('/dashboard/profile');
-    return { message: user.password ? "Password Updated Successfully!" : "Password Set Successfully!" };
+    return { success: user.password ? "Password Updated Successfully!" : "Password Set Successfully!" };
 }
 
-export async function unlinkGoogleAccount() {
+export async function unlinkGoogleAccount(): Promise<{ success?: string; error?: string }> {
     const session = await auth();
-    if (!session?.user?.email) return { message: "Not authenticated" };
+    if (!session?.user?.email) return { error: "Not authenticated" };
 
     const user = await prisma.user.findUnique({
         where: { email: session.user.email },
         include: { accounts: true }
     });
 
-    if (!user) return { message: "User not found" };
+    if (!user) return { error: "User not found" };
 
     // 1. Check if user has a password set
     if (!user.password) {
-        return { message: "Cannot unlink Google Account: No password set. Set a password first to avoid being locked out." };
+        return { error: "Cannot unlink Google Account: No password set. Set a password first to avoid being locked out." };
     }
 
     // 2. Check if Google account exists
     const googleAccount = user.accounts.find(a => a.provider === 'google');
     if (!googleAccount) {
-        return { message: "No Google account linked." };
+        return { error: "No Google account linked." };
     }
 
     // 3. Delete the account connection
@@ -155,5 +145,5 @@ export async function unlinkGoogleAccount() {
     });
 
     revalidatePath('/dashboard/profile');
-    return { message: "Google Account unlinked successfully." };
+    return { success: "Google Account unlinked successfully." };
 }

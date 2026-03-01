@@ -2,6 +2,7 @@
 import { prisma } from '@/app/lib/prisma';
 import { subDays } from 'date-fns';
 import { RAMADAN_CONFIG } from '@/app/lib/constants';
+import { autoComputePrevMonthRate } from '@/app/lib/expenses/mutations';
 
 export async function lockYesterdayMeals() {
     // 1. Define "Yesterday" in Dhaka Time
@@ -18,10 +19,10 @@ export async function lockYesterdayMeals() {
 
     const yesterdayKey = new Date(Date.UTC(yY, yM, yD)); // Midnight UTC
 
-    // 2. Fetch All active users only? No, default might be needed for inactive too if we track history.
-    // But usually active checks apply. Let's stick to locking for *all* to be safe or just active?
-    // Current logic fetches ALL.
+    // Only lock Active users — Inactive/Deleted users should not have meal records materialized.
+    // If they are later reactivated, their history from the inactive period should remain blank.
     const users = await prisma.user.findMany({
+        where: { status: 'Active' },
         select: { id: true, defaultLunchStatus: true, defaultDinnerStatus: true, defaultSahriStatus: true }
     });
 
@@ -64,5 +65,26 @@ export async function lockYesterdayMeals() {
 
     const createdCount = dataToCreate.length;
 
-    return { success: true, date: yesterdayKey, created: createdCount };
+    // 5. Month-End Check: if yesterday was the last day of its month
+    //    (i.e., today is the 1st), auto-compute PREV_MEAL_RATE from actual data.
+    //    This runs once per month automatically, right after all yesterday's meals are locked.
+    const lastDayOfYesterdayMonth = new Date(Date.UTC(yY, yM + 1, 0)).getUTCDate(); // last day number
+    const isMonthEnd = yD === lastDayOfYesterdayMonth;
+
+    let rateResult = null;
+    if (isMonthEnd) {
+        try {
+            rateResult = await autoComputePrevMonthRate(yY, yM + 1);
+            console.log(`[Cron] Month-end auto-rate for ${yY}-${String(yM + 1).padStart(2, '0')}:`, rateResult);
+        } catch (e) {
+            console.error('[Cron] Auto-rate computation failed:', e);
+        }
+    }
+
+    return {
+        success: true,
+        date: yesterdayKey,
+        created: createdCount,
+        autoRate: rateResult
+    };
 }

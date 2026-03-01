@@ -15,7 +15,7 @@ function ResetPasswordContent() {
 
     // We bind the token to the server action
     const resetPasswordWithToken = resetPassword.bind(null, token || '');
-    const [state, dispatch] = useActionState(resetPasswordWithToken, { message: '' });
+    const [state, dispatch] = useActionState(resetPasswordWithToken, { success: '', error: '' });
 
     if (!token) {
         return (
@@ -90,19 +90,16 @@ function ResetPasswordContent() {
                         <SubmitButton />
 
                         <div className="flex h-8 items-end space-x-1" aria-live="polite" aria-atomic="true">
-                            {state?.message && (
+                            {state?.success && (
+                                <div className="flex flex-col">
+                                    <p className="text-sm text-green-600">{state.success}</p>
+                                    <Link href="/login" className="text-blue-600 text-sm mt-1 hover:underline">Login now</Link>
+                                </div>
+                            )}
+                            {state?.error && (
                                 <>
-                                    {state.message.includes('Successfully') ? (
-                                        <div className="flex flex-col">
-                                            <p className="text-sm text-green-600">{state.message}</p>
-                                            <Link href="/login" className="text-blue-600 text-sm mt-1 hover:underline">Login now</Link>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <ExclamationCircleIcon className="h-5 w-5 text-red-500" />
-                                            <p className="text-sm text-red-500">{state.message}</p>
-                                        </>
-                                    )}
+                                    <ExclamationCircleIcon className="h-5 w-5 text-red-500" />
+                                    <p className="text-sm text-red-500">{state.error}</p>
                                 </>
                             )}
                         </div>

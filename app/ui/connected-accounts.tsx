@@ -14,8 +14,11 @@ export default function ConnectedAccounts({ isGoogleConnected }: { isGoogleConne
 
         startTransition(async () => {
             const res = await unlinkGoogleAccount();
-            if (res?.message) {
-                alert(res.message);
+            if (res?.error) {
+                alert(res.error);
+            }
+            if (res?.success) {
+                alert(res.success);
             }
         });
     };

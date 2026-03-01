@@ -4,7 +4,6 @@ import { Switch } from '@headlessui/react';
 import { useState } from 'react';
 import { updateDefaultMealPreference } from '@/app/lib/meal-actions';
 import { RAMADAN_CONFIG } from '@/app/lib/constants';
-// import { useRouter } from 'next/navigation';
 
 import clsx from 'clsx';
 
@@ -12,7 +11,6 @@ export default function DefaultMealToggle({ defaultLunch, defaultDinner, default
     const [lunchStatus, setLunchStatus] = useState(defaultLunch);
     const [dinnerStatus, setDinnerStatus] = useState(defaultDinner);
     const [isUpdating, setIsUpdating] = useState(false);
-    // const router = useRouter();
     const [sahriStatus, setSahriStatus] = useState(defaultSahri);
 
     // active date check could be prop or hardcoded

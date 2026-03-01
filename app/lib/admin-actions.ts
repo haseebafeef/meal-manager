@@ -5,16 +5,16 @@ import { prisma } from '@/app/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { getBatchUserSummaries } from '@/app/lib/expense-actions';
 
-export async function toggleAdminStatus(userId: string, currentStatus: boolean) {
+export async function toggleAdminStatus(userId: string, currentStatus: boolean): Promise<{ success?: string; error?: string }> {
     const session = await auth();
-    if (!session?.user?.email) return { message: "Not authenticated" };
+    if (!session?.user?.email) return { error: "Not authenticated" };
 
     const currentUser = await prisma.user.findUnique({
         where: { email: session.user.email }
     });
 
     if (!currentUser || !currentUser.isAdmin) {
-        return { message: "Unauthorized: Admin access required." };
+        return { error: "Unauthorized: Admin access required." };
     }
 
     try {
@@ -23,23 +23,23 @@ export async function toggleAdminStatus(userId: string, currentStatus: boolean) 
             data: { isAdmin: !currentStatus }
         });
         revalidatePath('/dashboard/admin/users');
-        return { message: `User status updated to ${!currentStatus ? 'Admin' : 'User'}` };
+        return { success: `User status updated to ${!currentStatus ? 'Admin' : 'User'}` };
     } catch (error) {
         console.error("Toggle Admin Error:", error);
-        return { message: "Database error" };
+        return { error: "Database error" };
     }
 }
 
-export async function toggleUserStatus(userId: string, currentStatus: string) {
+export async function toggleUserStatus(userId: string, currentStatus: string): Promise<{ success?: string; error?: string }> {
     const session = await auth();
-    if (!session?.user?.email) return { message: "Not authenticated" };
+    if (!session?.user?.email) return { error: "Not authenticated" };
 
     const currentUser = await prisma.user.findUnique({
         where: { email: session.user.email }
     });
 
     if (!currentUser || !currentUser.isAdmin) {
-        return { message: "Unauthorized: Admin access required." };
+        return { error: "Unauthorized: Admin access required." };
     }
 
     const newStatus = currentStatus === 'Active' ? 'Inactive' : 'Active';
@@ -58,10 +58,10 @@ export async function toggleUserStatus(userId: string, currentStatus: string) {
             })
         ]);
         revalidatePath('/dashboard/admin/users');
-        return { message: `User status updated to ${newStatus}` };
+        return { success: `User status updated to ${newStatus}` };
     } catch (error) {
         console.error("Toggle Status Error:", error);
-        return { message: "Database error" };
+        return { error: "Database error" };
     }
 }
 

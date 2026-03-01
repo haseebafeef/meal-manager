@@ -66,6 +66,7 @@ model UserStatusLog {
   changedAt DateTime @default(now())
 
   @@index([userId])
+  @@index([changedAt])
 }
 
 model Account {

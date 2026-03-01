@@ -9,7 +9,7 @@ import { Button } from './button';
 import Link from 'next/link';
 
 export default function LoginForm() {
-    const [state, dispatch] = useActionState(authenticate, { message: '' });
+    const [state, dispatch] = useActionState(authenticate, { success: '', error: '' });
 
     return (
         <div className="space-y-3">
@@ -72,11 +72,14 @@ export default function LoginForm() {
                         aria-live="polite"
                         aria-atomic="true"
                     >
-                        {state?.message && (
+                        {state?.error && (
                             <>
                                 <ExclamationCircleIcon className="h-5 w-5 text-red-500" />
-                                <p className="text-sm text-red-500">{state.message}</p>
+                                <p className="text-sm text-red-500">{state.error}</p>
                             </>
+                        )}
+                        {state?.success && (
+                            <p className="text-sm text-green-500">{state.success}</p>
                         )}
                     </div>
                 </form>

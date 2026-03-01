@@ -2,11 +2,12 @@
 
 import { z } from 'zod';
 import { auth } from '@/auth';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { prisma } from '@/app/lib/prisma';
 import { uploadImage } from '@/app/lib/storage';
 import { SETTINGS_KEYS } from '@/app/lib/constants';
 import { getUserSummary } from './queries';
+import { isSahriActive } from '@/app/lib/meals/utils';
 
 const ExpenseSchema = z.object({
     description: z.string().min(2, "Description too short"),
@@ -16,17 +17,17 @@ const ExpenseSchema = z.object({
     unitPrice: z.coerce.number().optional(),
 });
 
-export async function addExpense(prevState: { message: string } | undefined, formData: FormData) {
+export async function addExpense(prevState: unknown, formData: FormData) {
     const session = await auth();
     if (!session?.user?.email) {
-        return { message: "You must be logged in." };
+        return { error: "You must be logged in." };
     }
 
     const purchaser = await prisma.user.findUnique({
         where: { email: session.user.email }
     });
 
-    if (!purchaser) return { message: "User not found." };
+    if (!purchaser) return { error: "User not found." };
 
     const validatedFields = ExpenseSchema.safeParse({
         description: formData.get('description'),
@@ -37,7 +38,7 @@ export async function addExpense(prevState: { message: string } | undefined, for
     });
 
     if (!validatedFields.success) {
-        return { message: 'Invalid input.' };
+        return { error: 'Invalid input.' };
     }
 
     const { description, amount, volume, unit, unitPrice } = validatedFields.data;
@@ -62,11 +63,11 @@ export async function addExpense(prevState: { message: string } | undefined, for
         });
     } catch (error) {
         console.error("Database Error:", error);
-        return { message: 'Database Error: Failed to Add Expense.' };
+        return { error: 'Database Error: Failed to Add Expense.' };
     }
 
     revalidatePath('/dashboard');
-    return { message: 'Expense added successfully!' };
+    return { success: 'Expense added successfully!' };
 }
 
 // Batch processing 
@@ -82,140 +83,225 @@ export async function addBatchExpenses(prevState: { error?: string; success?: st
     const session = await auth();
     if (!session?.user?.email) return { error: "Not authenticated" };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let userId = (session.user as any).id;
-    if (!userId && session.user.email) {
-        const user = await prisma.user.findFirst({ where: { email: session.user.email } });
-        userId = user?.id;
+    const purchaser = await prisma.user.findUnique({ where: { email: session.user.email } });
+    if (!purchaser) return { error: 'User not found.' };
+    if (!purchaser.isAdmin) return { error: 'Admin access required.' };
+    const userId = purchaser.id;
+
+    interface ExpenseEntry {
+        description: string;
+        volume?: string;
+        unit?: unknown;
+        unitPrice?: unknown;
+        amount: unknown;
+        imageFile: File;
+        index: number;
     }
 
-    if (!userId) {
-        const purchaserVal = await prisma.user.findUnique({ where: { email: session.user.email ?? '' } });
-        if (purchaserVal) userId = purchaserVal.id;
-        else return { error: "User not found" };
-    }
-
-    const entries = [];
+    const entries: ExpenseEntry[] = [];
     let i = 0;
     while (formData.has(`entry_${i}_description`)) {
-        entries.push(i);
+        const description = formData.get(`entry_${i}_description`) as string;
+        const volume = formData.get(`entry_${i}_volume`) as string;
+        const unit = formData.get(`entry_${i}_unit`);
+        const unitPrice = formData.get(`entry_${i}_unitPrice`);
+        const amount = formData.get(`entry_${i}_amount`);
+        const imageFile = formData.get(`entry_${i}_image`) as File;
+
+        entries.push({ description, volume, unit, unitPrice, amount, imageFile, index: i });
         i++;
     }
 
     if (entries.length === 0) return { error: "No items to add." };
 
     let successCount = 0;
-    const errors = [];
+    const errors: string[] = [];
+    const batchToInsert: {
+        description: string;
+        amount: number;
+        volume: string | null;
+        unit: number | null;
+        unitPrice: number | null;
+        purchaserId: string;
+        imagePath: string | null;
+    }[] = [];
 
-    for (const index of entries) {
-        const description = formData.get(`entry_${index}_description`) as string;
-        const volume = formData.get(`entry_${index}_volume`);
-        const unit = formData.get(`entry_${index}_unit`);
-        const unitPrice = formData.get(`entry_${index}_unitPrice`);
-        const amount = formData.get(`entry_${index}_amount`);
-        const imageFile = formData.get(`entry_${index}_image`) as File;
-
+    for (const item of entries) {
         const validated = ExpenseItemSchema.safeParse({
-            description,
-            volume,
-            unit,
-            unitPrice,
-            amount
+            description: item.description,
+            volume: item.volume,
+            unit: item.unit,
+            unitPrice: item.unitPrice,
+            amount: item.amount
         });
 
         if (!validated.success) {
-            errors.push(`Item ${index + 1}: Invalid data`);
+            errors.push(`Item ${item.index + 1}: Invalid data`);
             continue;
         }
 
-        let imagePath = null;
-        if (imageFile && imageFile.size > 0) {
-            imagePath = await uploadImage(imageFile, 'expenses');
+        if (item.imageFile && item.imageFile.size > 0) {
+            // Items with images MUST be created individually because we need the imagePath from the upload
+            const imagePath = await uploadImage(item.imageFile, 'expenses');
             if (!imagePath) {
-                errors.push(`Item ${index + 1}: Image upload failed`);
+                errors.push(`Item ${item.index + 1}: Image upload failed`);
+                continue;
             }
-        }
 
-        try {
-            await prisma.expense.create({
-                data: {
-                    description: validated.data.description,
-                    amount: validated.data.amount,
-                    volume: validated.data.volume,
-                    unit: validated.data.unit,
-                    unitPrice: validated.data.unitPrice,
-                    imagePath: imagePath,
-                    purchaserId: userId,
-                }
+            try {
+                await prisma.expense.create({
+                    data: {
+                        ...validated.data,
+                        imagePath,
+                        purchaserId: userId,
+                    }
+                });
+                successCount++;
+            } catch (e) {
+                console.error(e);
+                errors.push(`Item ${item.index + 1}: DB Error`);
+            }
+        } else {
+            // Queue for bulk insert
+            batchToInsert.push({
+                description: validated.data.description,
+                amount: validated.data.amount,
+                volume: validated.data.volume ?? null,
+                unit: validated.data.unit ?? null,
+                unitPrice: validated.data.unitPrice ?? null,
+                purchaserId: userId,
+                imagePath: null,
             });
-            successCount++;
+        }
+    }
+
+    // Bulk insert items without images
+    if (batchToInsert.length > 0) {
+        try {
+            const result = await prisma.expense.createMany({
+                data: batchToInsert,
+            });
+            successCount += result.count;
         } catch (e) {
             console.error(e);
-            errors.push(`Item ${index + 1}: DB Error`);
+            errors.push(`Bulk Insert Error: Failed to add ${batchToInsert.length} items without images.`);
         }
     }
 
     revalidatePath('/dashboard');
 
     if (errors.length > 0) {
-        return { error: `Added ${successCount} items. Errors: ${errors.join(', ')}` };
+        return { error: `Added ${successCount} items. ${errors.length} issues found: ${errors.slice(0, 2).join('; ')}${errors.length > 2 ? '...' : ''}` };
     }
 
     return { success: `Successfully added ${successCount} items!` };
 }
 
-export async function finalizeMonth(userId: string, year: number, monthNum: number, rate: number) {
-    // 1. Determine Range (Dhaka Time)
-    // Month is 1-indexed
-    const startDhaka = new Date(Date.UTC(year, monthNum - 1, 1, 0, 0, 0));
-    const startUTC = new Date(startDhaka.getTime() - 6 * 60 * 60 * 1000);
+export async function finalizeMonth(userId: string, year: number, monthNum: number, rate: number): Promise<{ success?: string; error?: string; count?: number; cost?: number }> {
+    const session = await auth();
+    if (!session?.user?.email) return { error: "Not authenticated" };
 
-    const endDhaka = new Date(Date.UTC(year, monthNum, 1, 0, 0, 0));
-    const endUTC = new Date(endDhaka.getTime() - 6 * 60 * 60 * 1000);
+    const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
+    if (!currentUser?.isAdmin) return { error: "Unauthorized: Admin access required." };
 
-    // 2. Calculate Usage
-    const meals = await prisma.mealStatus.findMany({
-        where: {
-            userId: userId,
-            date: { gte: startUTC, lt: endUTC }
-        }
+    const startUTC = new Date(Date.UTC(year, monthNum - 1, 1));
+    const endUTC = new Date(Date.UTC(year, monthNum, 0));
+
+    // 1. Fetch user defaults
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { defaultLunchStatus: true, defaultDinnerStatus: true, defaultSahriStatus: true }
     });
+    if (!user) return { error: 'User not found' };
 
+    // 2. Fetch all explicit meal records AND status logs for this month
+    const [meals, statusLogs, initialStatusLog] = await Promise.all([
+        prisma.mealStatus.findMany({
+            where: {
+                userId: userId,
+                date: { gte: startUTC, lte: endUTC }
+            }
+        }),
+        prisma.userStatusLog.findMany({
+            where: {
+                userId: userId,
+                changedAt: { gte: startUTC, lte: new Date(endUTC.getTime() + 24 * 60 * 60 * 1000) }
+            },
+            orderBy: { changedAt: 'asc' }
+        }),
+        prisma.userStatusLog.findFirst({
+            where: {
+                userId: userId,
+                changedAt: { lt: startUTC }
+            },
+            orderBy: { changedAt: 'desc' }
+        })
+    ]);
+
+    // Index records by date key
+    const mealMap = new Map<string, typeof meals[0]>();
+    meals.forEach(m => mealMap.set(m.date.toISOString().split('T')[0], m));
+
+    // 3. Iterate every day in the month
     let totalMeals = 0;
-    for (const m of meals) {
+    const daysInMonth = endUTC.getUTCDate();
 
-        totalMeals += Number(m.lunch) + Number(m.dinner) + Number(m.sahri);
+    // Determine status at the very start of the month
+    let currentStatus = initialStatusLog?.status || 'Active';
+    let logIdx = 0;
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateUTC = new Date(Date.UTC(year, monthNum - 1, day));
+        const dateKey = dateUTC.toISOString().split('T')[0];
+
+        // Update currentStatus based on logs up to this day's END
+        const dayEnd = new Date(dateUTC.getTime() + 24 * 60 * 60 * 1000 - 1);
+        while (logIdx < statusLogs.length && statusLogs[logIdx].changedAt <= dayEnd) {
+            currentStatus = statusLogs[logIdx].status;
+            logIdx++;
+        }
+
+        const record = mealMap.get(dateKey);
+
+        if (record) {
+            totalMeals += Number(record.lunch) + Number(record.dinner) + Number(record.sahri);
+        } else if (currentStatus === 'Active') {
+            const defL = user.defaultLunchStatus ? 1 : 0;
+            const defD = user.defaultDinnerStatus ? 1 : 0;
+            const defS = (isSahriActive(dateUTC) && user.defaultSahriStatus) ? 1 : 0;
+            totalMeals += defL + defD + defS;
+        }
     }
 
     const totalCost = totalMeals * rate;
     const monthKey = `${year}-${String(monthNum).padStart(2, '0')}`;
 
-    // 3. Save Snapshot
-    await prisma.monthlySnapshot.upsert({
-        where: { userId_month: { userId, month: monthKey } },
-        update: { mealRate: rate, totalMeals, totalCost },
-        create: {
-            userId,
-            month: monthKey,
-            year,
-            monthNum,
-            mealRate: rate,
-            totalMeals,
-            totalCost
-        }
-    });
+    // 4. Save Snapshot
+    try {
+        await prisma.monthlySnapshot.upsert({
+            where: { userId_month: { userId, month: monthKey } },
+            update: { mealRate: rate, totalMeals, totalCost },
+            create: {
+                userId,
+                month: monthKey,
+                year,
+                monthNum,
+                mealRate: rate,
+                totalMeals,
+                totalCost
+            }
+        });
+    } catch (e) {
+        console.error("Database Error:", e);
+        return { error: 'Database Error: Failed to finalize month.' };
+    }
+
 
     revalidatePath('/dashboard');
-    return { success: true, count: totalMeals, cost: totalCost };
+    return { success: `Month ${monthKey} finalized for user.`, count: totalMeals, cost: totalCost };
 }
 
-/**
- * Synchronizes a user's active/inactive status based on their current balance.
- * If balance drops below AUTO_OFF_THRESHOLD, they become Inactive.
- * If balance returns to >= 0, they become Active.
- */
 export async function syncUserStatus(userId: string, existingSettingsMap?: Map<string, string>) {
-
     let settingsMap = existingSettingsMap;
     if (!settingsMap) {
         const settings = await prisma.systemSettings.findMany();
@@ -224,7 +310,6 @@ export async function syncUserStatus(userId: string, existingSettingsMap?: Map<s
 
     const threshold = parseFloat(settingsMap.get(SETTINGS_KEYS.AUTO_OFF_THRESHOLD) || '-300');
 
-    // Get current balance and status (Pass map optimization)
     const summary = await getUserSummary(userId, settingsMap);
     const user = await prisma.user.findUnique({
         where: { id: userId },
@@ -254,7 +339,60 @@ export async function syncUserStatus(userId: string, existingSettingsMap?: Map<s
                 }
             })
         ]);
+        revalidateTag('users', 'default');
         revalidatePath('/dashboard/admin/users');
         revalidatePath('/dashboard/meals');
     }
+}
+
+export async function autoComputePrevMonthRate(year: number, monthNum: number): Promise<{ success?: string; error?: string; rate?: number; totalExpenses?: number; totalMeals?: number; saved?: boolean }> {
+    const session = await auth();
+    if (!session?.user?.email) return { error: "Not authenticated" };
+
+    const currentUser = await prisma.user.findUnique({ where: { email: session.user.email } });
+    if (!currentUser?.isAdmin) return { error: "Unauthorized: Admin access required." };
+
+    const startUTC = new Date(Date.UTC(year, monthNum - 1, 1));
+    const endUTC = new Date(Date.UTC(year, monthNum, 0));
+
+    const expStartUTC = new Date(startUTC.getTime() - 6 * 60 * 60 * 1000);
+    const expEndUTC = new Date(endUTC.getTime() - 6 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000 - 1);
+
+    const [expenseAgg, mealAgg] = await Promise.all([
+        prisma.expense.aggregate({
+            where: { date: { gte: expStartUTC, lte: expEndUTC } },
+            _sum: { amount: true }
+        }),
+        prisma.mealStatus.aggregate({
+            where: { date: { gte: startUTC, lte: endUTC } },
+            _sum: { lunch: true, dinner: true, sahri: true }
+        })
+    ]);
+
+    const totalExpenses = expenseAgg._sum.amount || 0;
+    const totalMeals = (mealAgg._sum.lunch || 0) + (mealAgg._sum.dinner || 0) + (mealAgg._sum.sahri || 0);
+
+    if (totalMeals === 0) {
+        return { error: 'No meals recorded for this month' };
+    }
+
+    const rate = Math.ceil((totalExpenses / totalMeals) * 100) / 100;
+
+    await prisma.$transaction([
+        prisma.systemSettings.upsert({
+            where: { key: SETTINGS_KEYS.PREV_MEAL_RATE },
+            update: { value: String(rate) },
+            create: { key: SETTINGS_KEYS.PREV_MEAL_RATE, value: String(rate) }
+        }),
+        prisma.systemSettings.upsert({
+            where: { key: SETTINGS_KEYS.PREV_MEAL_RATE_SOURCE },
+            update: { value: 'auto' },
+            create: { key: SETTINGS_KEYS.PREV_MEAL_RATE_SOURCE, value: 'auto' }
+        })
+    ]);
+
+    revalidateTag('settings', 'default');
+    revalidatePath('/dashboard/admin/settings');
+
+    return { success: `Previous month rate computed and saved as ${rate}.`, rate, totalExpenses, totalMeals, saved: true };
 }

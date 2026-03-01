@@ -8,15 +8,15 @@ import { UserIcon, CheckCircleIcon, ExclamationCircleIcon, CreditCardIcon } from
 import { useEffect, useState } from 'react';
 
 export default function AddBalanceForm({ users }: { users: { id: string, name: string }[] }) {
-    const [state, dispatch] = useActionState(createBalanceRequest, { message: '' });
+    const [state, dispatch] = useActionState(createBalanceRequest, { success: '', error: '' });
     const [success, setSuccess] = useState(false);
 
     useEffect(() => {
-        if (state.message === 'Request processed successfully.') {
+        if (state.success === 'Request processed successfully.') {
             const t = setTimeout(() => setSuccess(true), 0);
             return () => clearTimeout(t);
-        } // Simple check, ideally state would be more structured
-    }, [state.message]);
+        }
+    }, [state.success]);
 
     if (success) {
         return (
@@ -115,10 +115,10 @@ export default function AddBalanceForm({ users }: { users: { id: string, name: s
                 <SubmitButton />
 
                 <div className="flex h-8 items-end space-x-1" aria-live="polite" aria-atomic="true">
-                    {state.message && state.message !== 'Request processed successfully.' && (
+                    {state.error && (
                         <>
                             <ExclamationCircleIcon className="h-5 w-5 text-red-500" />
-                            <p className="text-sm text-red-500">{state.message}</p>
+                            <p className="text-sm text-red-500">{state.error}</p>
                         </>
                     )}
                 </div>
