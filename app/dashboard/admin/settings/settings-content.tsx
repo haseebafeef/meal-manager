@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { getSystemSettings, updateSystemSetting } from '@/app/lib/settings-actions';
 import { SETTINGS_KEYS } from '@/app/lib/constants';
-import { autoComputePrevMonthRate } from '@/app/lib/expenses/mutations';
+import { autoComputePrevMonthRate } from '@/app/actions/expenses';
 
 
 export default function SettingsContent() {

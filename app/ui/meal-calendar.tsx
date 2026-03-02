@@ -2,14 +2,14 @@
 
 import { useState, useTransition } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isBefore, isAfter, startOfDay, addMonths, subMonths, startOfWeek, endOfWeek, subDays } from 'date-fns';
-import { updateMealCount } from '@/app/lib/meal-actions';
+import { updateMealCount } from '@/app/actions/meals';
 import { RAMADAN_CONFIG } from '@/app/lib/constants';
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
 
 type MealStatus = {
-    date: Date;
+    date: Date | string;
     lunch: number;
     dinner: number;
     sahri?: number; // Optional as old records might miss it (though we backfilled via Prisma default?)

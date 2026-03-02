@@ -7,8 +7,9 @@ import TransactionsList from '@/app/ui/transactions-list';
 import AddExpensesTable from '@/app/ui/add-expenses-table';
 import AdminAddMoneyForm from '@/app/ui/admin-add-money-form';
 import ExpenseList from '@/app/ui/expense-list';
-import { getSystemSummary, getUserSummary } from '@/app/lib/expense-actions';
-import { getDailyMealStats } from '@/app/lib/meal-actions';
+import { getSystemSummary } from '@/app/services/expenses/systemSummary';
+import { getUserSummary } from '@/app/services/expenses/userSummary';
+import { getDailyMealStats } from '@/app/services/meals/getDailyMealStats';
 
 import { prisma } from '@/app/lib/prisma';
 import { ThemeToggle } from '@/app/ui/theme-toggle';

@@ -6,9 +6,10 @@ import { subDays, endOfMonth, addMonths } from 'date-fns';
 import { prisma } from '@/app/lib/prisma';
 import { getSystemSettings } from '@/app/lib/settings-actions';
 import { SETTINGS_KEYS } from '@/app/lib/constants';
-import { syncUserStatus } from '@/app/lib/expenses';
-import { finalizeMonth } from '@/app/lib/expenses/mutations';
-import { isSahriActive } from './utils';
+import { isSahriActive } from '@/app/lib/meals/utils';
+
+import { syncUserStatus } from '@/app/services/users/status';
+import { finalizeMonth } from '@/app/actions/expenses';
 
 export async function updateMealCount(dateStr: string, type: 'lunch' | 'dinner' | 'sahri', newCount: number, targetUserId?: string) {
     const session = await auth();
@@ -21,7 +22,6 @@ export async function updateMealCount(dateStr: string, type: 'lunch' | 'dinner' 
         userId = user?.id;
     }
 
-    // Admin Override
     if (targetUserId) {
         const currentUser = await prisma.user.findUnique({ where: { id: userId } });
         if (!currentUser?.isAdmin) {
@@ -32,31 +32,26 @@ export async function updateMealCount(dateStr: string, type: 'lunch' | 'dinner' 
 
     if (!userId) return { error: "User not found" };
 
-    // Date Logic - Strict UTC Midnight
     const [y, m, d] = dateStr.split('-').map(Number);
-    const targetDate = new Date(Date.UTC(y, m - 1, d)); // UTC Midnight
+    const targetDate = new Date(Date.UTC(y, m - 1, d)); 
 
-    // Sahri Validity Check
     if (type === 'sahri' && !isSahriActive(targetDate)) {
         return { error: "Sahri is not active for this date." };
     }
 
     const now = new Date();
-    // Determine today's date in the local timezone for strict rule enforcement.
     const dhakaTimeStr = now.toLocaleString("en-US", { timeZone: "Asia/Dhaka" });
     const dhakaDate = new Date(dhakaTimeStr);
 
-    // Represent the start of the current local day as a UTC midnight Date object for database matching.
     const dhakaTodayMidnight = new Date(Date.UTC(dhakaDate.getFullYear(), dhakaDate.getMonth(), dhakaDate.getDate()));
 
     const isByAdmin = !!targetUserId;
 
-    // Fetch dynamic settings from cache
-    const settings = await getSystemSettings();
-    const settingsMap = new Map(Object.entries(settings));
+    const settingsRecord: Record<string, string> = await getSystemSettings();
+    const settings = settingsRecord;
+    const settingsMap = new Map<string, string>(Object.entries(settingsRecord));
 
     if (!isByAdmin) {
-        // Enforce Active Status
         const userStatus = await prisma.user.findUnique({
             where: { id: userId },
             select: { status: true }
@@ -70,52 +65,39 @@ export async function updateMealCount(dateStr: string, type: 'lunch' | 'dinner' 
         const dinnerCutoffStr = settings?.[SETTINGS_KEYS.DINNER_CUTOFF] || '13:00';
         const sahriCutoffStr = settings?.[SETTINGS_KEYS.SAHRI_CUTOFF] || '18:00';
 
-        // Parse HH:MM
         const [lH, lM] = lunchCutoffStr.split(':').map(Number);
         const [dH, dM] = dinnerCutoffStr.split(':').map(Number);
         const [sH, sM] = sahriCutoffStr.split(':').map(Number);
 
-        // Convert to minutes for easy comparison
         const lunchCutoffMins = lH * 60 + lM;
         const dinnerCutoffMins = dH * 60 + dM;
         const sahriCutoffMins = sH * 60 + sM;
 
-        // 1. Past Check
-        // If targetDate check is smaller than today's midnight -> It's yesterday or before
         if (targetDate.getTime() < dhakaTodayMidnight.getTime()) {
             return { error: "Cannot change past meal status." };
         }
 
-        // 2. Future Limit Check (Current Month + 2 Months)
-        // We use dhakaDate to determine "Current Month"
         const maxEditDate = endOfMonth(addMonths(dhakaDate, 2));
-        // We compare targetDate (UTC Midnight) with maxEditDate. 
-        // Since maxEditDate includes time, and targetDate is 00:00,
-        // if targetDate is AFTER maxEditDate, it's definitely out of bounds.
         if (targetDate > maxEditDate) {
             return { error: "Cannot manage meals beyond 2 months from now." };
         }
 
-        // 3. Cutoff Check (Only if target is Today)
         if (targetDate.getTime() === dhakaTodayMidnight.getTime()) {
             const currentHour = dhakaDate.getHours();
             const currentMinute = dhakaDate.getMinutes();
             const minutesNow = currentHour * 60 + currentMinute;
 
             if (type === 'lunch') {
-                // Dynamic Cutoff Check
                 if (minutesNow >= lunchCutoffMins) {
                     const limitTime12 = new Date(0, 0, 0, lH, lM).toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
                     return { error: `Lunch cutoff time (${limitTime12}) passed.` };
                 }
             } else if (type === 'dinner') {
-                // Dynamic Cutoff Check
                 if (minutesNow >= dinnerCutoffMins) {
                     const limitTime12 = new Date(0, 0, 0, dH, dM).toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
                     return { error: `Dinner cutoff time (${limitTime12}) passed.` };
                 }
             } else if (type === 'sahri') {
-                // Dynamic Cutoff Check
                 if (minutesNow >= sahriCutoffMins) {
                     const limitTime12 = new Date(0, 0, 0, sH, sM).toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
                     return { error: `Sahri cutoff time (${limitTime12}) passed.` };
@@ -123,15 +105,12 @@ export async function updateMealCount(dateStr: string, type: 'lunch' | 'dinner' 
             }
         }
     } else {
-        // Admin Constraint: 10 Days Past Limit
         const tenDaysAgo = subDays(dhakaTodayMidnight, 10);
         if (targetDate < tenDaysAgo) {
             return { error: "Admin can only edit meals up to 10 days in the past." };
         }
     }
 
-    // Normalize date to midnight for DB storage
-    // We use the UTC Midnight date (targetDate) as the key.
     const dbDate = targetDate;
 
     try {
@@ -150,24 +129,14 @@ export async function updateMealCount(dateStr: string, type: 'lunch' | 'dinner' 
                 data: { [type]: newCount }
             });
         } else {
-            // Fetch user preference for defaults
             const userPref = await prisma.user.findUnique({
                 where: { id: userId },
-
                 select: { defaultLunchStatus: true, defaultDinnerStatus: true, defaultSahriStatus: true }
             });
 
-            // Standard defaults for the OTHER types
-            // If we are setting one Type, we must preserve Defaults for others if creating new record.
             const defaultLunch = userPref?.defaultLunchStatus ? 1 : 0;
             const defaultDinner = userPref?.defaultDinnerStatus ? 1 : 0;
-            // Sahri default only applies if active date? 
-            // Yes, but here we are creating a specific record. 
-            // If the user hasn't set Sahri, it should be 0 or default.
-            // Check if Sahri is active for this target date before applying default?
-            // Actually, if we are creating a record, we should respect the isActive check for default application too.
             const isSahri = isSahriActive(dbDate);
-
             const defaultSahri = (isSahri && userPref?.defaultSahriStatus) ? 1 : 0;
 
             await prisma.mealStatus.create({
@@ -176,18 +145,14 @@ export async function updateMealCount(dateStr: string, type: 'lunch' | 'dinner' 
                     date: dbDate,
                     lunch: type === 'lunch' ? newCount : defaultLunch,
                     dinner: type === 'dinner' ? newCount : defaultDinner,
-
                     sahri: type === 'sahri' ? newCount : defaultSahri,
                 }
             });
         }
 
-        // If an admin edited a date that falls in an already-finalized month (has a MonthlySnapshot),
-        // re-run finalization with the same stored rate so totalMeals and totalCost stay accurate.
-        // Without this, the stale snapshot would silently override the edited meal in cost calculations.
         if (isByAdmin) {
             const editYear = dbDate.getUTCFullYear();
-            const editMonthNum = dbDate.getUTCMonth() + 1; // 1-indexed
+            const editMonthNum = dbDate.getUTCMonth() + 1; 
             const editMonthKey = `${editYear}-${String(editMonthNum).padStart(2, '0')}`;
 
             const existingSnapshot = await prisma.monthlySnapshot.findUnique({
@@ -195,12 +160,10 @@ export async function updateMealCount(dateStr: string, type: 'lunch' | 'dinner' 
             });
 
             if (existingSnapshot) {
-                // Re-finalize using the snapshot's own rate to refresh meal count and cost.
                 await finalizeMonth(userId, editYear, editMonthNum, existingSnapshot.mealRate);
             }
         }
 
-        // Revalidate paths
         if (isByAdmin) {
             revalidatePath(`/dashboard/admin/meals/${userId}`);
             revalidatePath('/dashboard/admin/users');
@@ -209,7 +172,6 @@ export async function updateMealCount(dateStr: string, type: 'lunch' | 'dinner' 
         revalidatePath('/dashboard/meals');
         revalidatePath('/dashboard/meals/history');
 
-        // Correctness > speed here: await to ensure balance status is consistent before returning.
         await syncUserStatus(userId, settingsMap);
 
         return { success: "Meal status updated." };
@@ -240,14 +202,13 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner' | 'sa
         }
 
         if (userIdToLock) {
-            // --- Shared Date & Settings Logic ---
-            // Define all time variables here to avoid scope issues
             const now = new Date();
             const dhakaTimeStr = now.toLocaleString("en-US", { timeZone: "Asia/Dhaka" });
             const dhakaDate = new Date(dhakaTimeStr);
             const dhakaTodayMidnight = new Date(Date.UTC(dhakaDate.getFullYear(), dhakaDate.getMonth(), dhakaDate.getDate()));
 
-            const settings = await getSystemSettings();
+            const settingsRecord: Record<string, string> = await getSystemSettings();
+            const settings = settingsRecord;
 
             let cutoffStr = '11:00';
             if (type === 'lunch') cutoffStr = settings?.[SETTINGS_KEYS.LUNCH_CUTOFF] || '11:00';
@@ -258,21 +219,16 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner' | 'sa
             const cutoffMins = cH * 60 + cM;
             const currentMins = dhakaDate.getHours() * 60 + dhakaDate.getMinutes();
 
-            // 2. Lock History: Backfill "Past Days of Current Month" with *OLD* Defaults
-            // This prevents "Time Travel" where changing default today retcons the past.
             const userForDefaults = await prisma.user.findUnique({
                 where: { id: userIdToLock },
-
                 select: { defaultLunchStatus: true, defaultDinnerStatus: true, defaultSahriStatus: true }
             });
 
             if (userForDefaults) {
                 const oldDefaultLunch = userForDefaults.defaultLunchStatus ? 1 : 0;
                 const oldDefaultDinner = userForDefaults.defaultDinnerStatus ? 1 : 0;
-
                 const oldDefaultSahri = userForDefaults.defaultSahriStatus ? 1 : 0;
 
-                // Range: Start of Month -> Yesterday (inclusive)
                 const startOfMonthDate = new Date(Date.UTC(dhakaDate.getFullYear(), dhakaDate.getMonth(), 1));
                 const yesterdayMidnight = new Date(dhakaTodayMidnight);
                 yesterdayMidnight.setDate(yesterdayMidnight.getDate() - 1);
@@ -292,13 +248,10 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner' | 'sa
                     const existingDates = new Set(existingRecords.map((r: { date: Date }) => r.date.getTime()));
                     const toCreate = [];
 
-                    // Iterate Start -> Yesterday
                     const dIter = new Date(startOfMonthDate);
                     while (dIter.getTime() <= yesterdayMidnight.getTime()) {
                         if (!existingDates.has(dIter.getTime())) {
-                            // Check Sahri Validity for backfill
                             const isSahri = isSahriActive(dIter);
-
                             toCreate.push({
                                 userId: userIdToLock,
                                 date: new Date(dIter),
@@ -317,7 +270,6 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner' | 'sa
                     }
                 }
 
-                // 3. Lock "Today" if Cutoff Passed
                 if (currentMins >= cutoffMins) {
                     const existingToday = await prisma.mealStatus.findUnique({
                         where: {
@@ -329,14 +281,9 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner' | 'sa
                     });
 
                     if (!existingToday) {
-                        // If cutoff passed, we lock TODAY with the OLD value.
-                        // The user's NEW setting will apply from Tomorrow.
-
                         const valLunch = userForDefaults.defaultLunchStatus ? 1 : 0;
                         const valDinner = userForDefaults.defaultDinnerStatus ? 1 : 0;
-
                         const valSahri = userForDefaults.defaultSahriStatus ? 1 : 0;
-
                         const isSahri = isSahriActive(dhakaTodayMidnight);
 
                         await prisma.mealStatus.create({
@@ -345,7 +292,6 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner' | 'sa
                                 date: dhakaTodayMidnight,
                                 lunch: valLunch,
                                 dinner: valDinner,
-
                                 sahri: isSahri ? valSahri : 0
                             }
                         });
@@ -353,18 +299,12 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner' | 'sa
                 }
             }
 
-            // 4. Force Future Overwrite (Explicitly Create Records for Remainder of Current Month)
-            // Start Date: "Tomorrow" if cutoff passed, otherwise "Today".
             const tomorrowMidnight = new Date(dhakaTodayMidnight);
             tomorrowMidnight.setDate(tomorrowMidnight.getDate() + 1);
 
             const startDate = (currentMins >= cutoffMins) ? tomorrowMidnight : dhakaTodayMidnight;
+            const endFillDate = new Date(dhakaDate.getFullYear(), dhakaDate.getMonth() + 2, 0); 
 
-            // Define End Date: Remainder of CURRENT MONTH + NEXT MONTH.
-            const endFillDate = new Date(dhakaDate.getFullYear(), dhakaDate.getMonth() + 2, 0); // End of Next Month
-
-            // OPTIMIZED BATCH LOGIC
-            // 1. Fetch Existing Records in Range
             const existingRecords = await prisma.mealStatus.findMany({
                 where: {
                     userId: userIdToLock,
@@ -378,32 +318,24 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner' | 'sa
 
             const existingDatesSet = new Set(existingRecords.map(r => r.date.getTime()));
 
-            // 2. Prepare Lists for Batch Operations
             const toCreate = [];
             const validSahriDates = [];
             const invalidSahriDates = [];
 
-            // Iterate through range
             const iterDate = new Date(startDate);
             while (iterDate <= endFillDate) {
                 const dKey = new Date(Date.UTC(iterDate.getFullYear(), iterDate.getMonth(), iterDate.getDate()));
-
-                // Identify if Sahri is valid for this date
                 const isSahri = isSahriActive(dKey);
 
                 if (!existingDatesSet.has(dKey.getTime())) {
-                    // Prepare for Create
                     const otherDefaultLunch = userForDefaults?.defaultLunchStatus ? 1 : 0;
                     const otherDefaultDinner = userForDefaults?.defaultDinnerStatus ? 1 : 0;
-
                     const otherDefaultSahri = userForDefaults?.defaultSahriStatus ? 1 : 0;
 
                     const newVal = isEnabled ? 1 : 0;
 
                     const l = type === 'lunch' ? newVal : otherDefaultLunch;
                     const d = type === 'dinner' ? newVal : otherDefaultDinner;
-                    // Sahri Logic: If updating Sahri -> Check Validity. If valid, set newVal. If invalid, 0.
-                    // If updating others -> Check Validity. If valid, use old default. If invalid, 0.
                     const s = type === 'sahri'
                         ? (isSahri && newVal ? 1 : 0)
                         : (isSahri ? otherDefaultSahri : 0);
@@ -416,7 +348,6 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner' | 'sa
                         sahri: s
                     });
                 } else {
-                    // Existing Record Logic
                     if (isSahri) validSahriDates.push(dKey);
                     else invalidSahriDates.push(dKey);
                 }
@@ -424,63 +355,51 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner' | 'sa
                 iterDate.setDate(iterDate.getDate() + 1);
             }
 
-            // 3. Execute Batch Operations
             if (toCreate.length > 0) {
                 await prisma.mealStatus.createMany({
                     data: toCreate
                 });
             }
 
-            // 4. Update Existing Records
             const updateVal = isEnabled ? 1 : 0;
 
             if (type !== 'sahri') {
-                // For Lunch/Dinner: Simple Update Many if dates exist
                 if (existingRecords.length > 0) {
                     await prisma.mealStatus.updateMany({
                         where: {
                             userId: userIdToLock,
-                            date: {
-                                in: existingRecords.map(r => r.date)
-                            }
+                            date: { in: existingRecords.map(r => r.date) }
                         },
-                        data: {
-                            [type]: updateVal
-                        }
+                        data: { [type]: updateVal }
                     });
                 }
             } else {
-                // For Sahri: Split Logic based on validity
                 if (validSahriDates.length > 0) {
                     await prisma.mealStatus.updateMany({
                         where: {
                             userId: userIdToLock,
                             date: { in: validSahriDates }
                         },
-
                         data: { sahri: updateVal }
                     });
                 }
-                // Invalid dates always force 0 for Sahri
                 if (invalidSahriDates.length > 0) {
                     await prisma.mealStatus.updateMany({
                         where: {
                             userId: userIdToLock,
                             date: { in: invalidSahriDates }
                         },
-
                         data: { sahri: 0 }
                     });
                 }
             }
         }
 
-        // 5. Update the Setting
-        if (targetUserId) {
-            let field = 'defaultLunchStatus';
-            if (type === 'dinner') field = 'defaultDinnerStatus';
-            else if (type === 'sahri') field = 'defaultSahriStatus';
+        let field = 'defaultLunchStatus';
+        if (type === 'dinner') field = 'defaultDinnerStatus';
+        else if (type === 'sahri') field = 'defaultSahriStatus';
 
+        if (targetUserId) {
             await prisma.user.update({
                 where: { id: targetUserId },
                 data: { [field]: isEnabled }
@@ -489,10 +408,6 @@ export async function updateDefaultMealPreference(type: 'lunch' | 'dinner' | 'sa
             revalidatePath('/dashboard/meals');
             return { success: "Preferences updated." };
         } else {
-            let field = 'defaultLunchStatus';
-            if (type === 'dinner') field = 'defaultDinnerStatus';
-            else if (type === 'sahri') field = 'defaultSahriStatus';
-
             await prisma.user.update({
                 where: { email: emailToUpdate },
                 data: { [field]: isEnabled }

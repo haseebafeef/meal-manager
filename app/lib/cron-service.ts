@@ -2,7 +2,7 @@
 import { prisma } from '@/app/lib/prisma';
 import { subDays } from 'date-fns';
 import { RAMADAN_CONFIG } from '@/app/lib/constants';
-import { autoComputePrevMonthRate } from '@/app/lib/expenses/mutations';
+import { autoComputePrevMonthRate } from '@/app/actions/expenses';
 
 export async function lockYesterdayMeals() {
     // 1. Define "Yesterday" in Dhaka Time

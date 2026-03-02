@@ -1,7 +1,7 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import MealCalendar from '@/app/ui/meal-calendar';
-import { getMealStatus } from '@/app/lib/meal-actions';
+import { getMealStatus } from '@/app/services/meals/getMealStatus';
 import { ThemeToggle } from '@/app/ui/theme-toggle';
 
 

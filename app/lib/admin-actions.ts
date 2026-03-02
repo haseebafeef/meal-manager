@@ -3,7 +3,7 @@
 import { auth } from '@/auth';
 import { prisma } from '@/app/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { getBatchUserSummaries } from '@/app/lib/expense-actions';
+import { getBatchUserSummaries } from '@/app/services/expenses/summary';
 
 export async function toggleAdminStatus(userId: string, currentStatus: boolean): Promise<{ success?: string; error?: string }> {
     const session = await auth();

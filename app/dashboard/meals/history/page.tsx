@@ -1,6 +1,6 @@
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
-import { getMonthlyMealHistory } from '@/app/lib/meal-actions';
+import { getMonthlyMealHistory } from '@/app/services/meals/history';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import clsx from 'clsx';

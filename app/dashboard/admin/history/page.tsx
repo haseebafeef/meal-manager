@@ -6,7 +6,7 @@ import UserDropdown from '@/app/ui/user-dropdown';
 import Link from 'next/link';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { startOfMonth, endOfMonth, addMonths, subMonths, format } from 'date-fns';
-import { getMonthlySystemSummary } from '@/app/lib/expense-actions';
+import { getMonthlySystemSummary } from '@/app/services/expenses/stats';
 import Pagination from '@/app/ui/pagination';
 
 import { prisma } from '@/app/lib/prisma';

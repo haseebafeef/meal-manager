@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
-import { syncUserStatus } from './expense-actions';
+import { syncUserStatus } from '@/app/services/users/status';
 
 import { prisma } from '@/app/lib/prisma';
 
