@@ -1,4 +1,5 @@
-import { getMonthlyExpenses, getAvailableExpenseMonths } from '@/app/lib/expense-actions';
+import { getMonthlyExpenses } from '@/app/services/expenses/getMonthlyExpenses';
+import { getAvailableExpenseMonths } from '@/app/services/expenses/getAvailableExpenseMonths';
 import MonthSelector from '@/app/ui/month-selector';
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
@@ -101,7 +102,7 @@ export default async function ExpensesPage(props: {
                                                 <div>
                                                     <p className="font-bold text-gray-900 dark:text-white">{expense.description}</p>
                                                     <p className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                                                        {expense.date.toLocaleDateString("en-GB", { timeZone: "Asia/Dhaka", day: 'numeric', month: 'short' }) + ', ' + expense.date.toLocaleTimeString("en-US", { timeZone: "Asia/Dhaka", hour: 'numeric', minute: '2-digit' })}
+                                                        {new Date(expense.date).toLocaleDateString("en-GB", { timeZone: "Asia/Dhaka", day: 'numeric', month: 'short' }) + ', ' + new Date(expense.date).toLocaleTimeString("en-US", { timeZone: "Asia/Dhaka", hour: 'numeric', minute: '2-digit' })}
                                                     </p>
                                                 </div>
                                             </div>
@@ -152,11 +153,11 @@ export default async function ExpensesPage(props: {
                                                     <div className="flex items-center gap-2">
                                                         <CalendarIcon className="w-4 h-4 text-gray-400" />
                                                         <span className="font-medium text-gray-900 dark:text-white">
-                                                            {expense.date.toLocaleDateString("en-GB", { timeZone: "Asia/Dhaka", day: 'numeric', month: 'short', year: 'numeric' })}
+                                                            {new Date(expense.date).toLocaleDateString("en-GB", { timeZone: "Asia/Dhaka", day: 'numeric', month: 'short', year: 'numeric' })}
                                                         </span>
                                                     </div>
                                                     <div className="text-xs text-gray-500 pl-6">
-                                                        {expense.date.toLocaleTimeString("en-US", { timeZone: "Asia/Dhaka", hour: 'numeric', minute: '2-digit' })}
+                                                        {new Date(expense.date).toLocaleTimeString("en-US", { timeZone: "Asia/Dhaka", hour: 'numeric', minute: '2-digit' })}
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">

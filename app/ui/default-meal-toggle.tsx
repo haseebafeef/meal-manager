@@ -2,7 +2,7 @@
 
 import { Switch } from '@headlessui/react';
 import { useState } from 'react';
-import { updateDefaultMealPreference } from '@/app/lib/meal-actions';
+import { updateDefaultMealPreference } from '@/app/actions/meals';
 import { RAMADAN_CONFIG } from '@/app/lib/constants';
 
 import clsx from 'clsx';

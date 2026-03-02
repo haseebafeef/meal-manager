@@ -9,7 +9,7 @@ import bcrypt from 'bcryptjs';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
     ...authConfig,
-    adapter: PrismaAdapter(prisma),
+    adapter: PrismaAdapter(prisma) as any,
     session: { strategy: 'jwt' },
     callbacks: {
         async jwt({ token, user }) {
@@ -65,7 +65,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                             return null;
                         }
                         console.log('Authorize: Success', user.id);
-                        return user;
+                        return user as any;
                     }
                     console.log('Authorize: Password mismatch');
                 }

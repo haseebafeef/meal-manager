@@ -6,8 +6,10 @@ import { revalidatePath, revalidateTag } from 'next/cache';
 import { prisma } from '@/app/lib/prisma';
 import { uploadImage } from '@/app/lib/storage';
 import { SETTINGS_KEYS } from '@/app/lib/constants';
-import { getUserSummary } from './queries';
 import { isSahriActive } from '@/app/lib/meals/utils';
+
+// We import the granular services instead of barrel files!
+import { getSystemSettings } from '@/app/lib/settings-actions';
 
 const ExpenseSchema = z.object({
     description: z.string().min(2, "Description too short"),
@@ -70,7 +72,6 @@ export async function addExpense(prevState: unknown, formData: FormData) {
     return { success: 'Expense added successfully!' };
 }
 
-// Batch processing 
 const ExpenseItemSchema = z.object({
     description: z.string().min(1, "Description required"),
     volume: z.string().optional(),
@@ -141,7 +142,6 @@ export async function addBatchExpenses(prevState: { error?: string; success?: st
         }
 
         if (item.imageFile && item.imageFile.size > 0) {
-            // Items with images MUST be created individually because we need the imagePath from the upload
             const imagePath = await uploadImage(item.imageFile, 'expenses');
             if (!imagePath) {
                 errors.push(`Item ${item.index + 1}: Image upload failed`);
@@ -162,7 +162,6 @@ export async function addBatchExpenses(prevState: { error?: string; success?: st
                 errors.push(`Item ${item.index + 1}: DB Error`);
             }
         } else {
-            // Queue for bulk insert
             batchToInsert.push({
                 description: validated.data.description,
                 amount: validated.data.amount,
@@ -175,7 +174,6 @@ export async function addBatchExpenses(prevState: { error?: string; success?: st
         }
     }
 
-    // Bulk insert items without images
     if (batchToInsert.length > 0) {
         try {
             const result = await prisma.expense.createMany({
@@ -207,14 +205,12 @@ export async function finalizeMonth(userId: string, year: number, monthNum: numb
     const startUTC = new Date(Date.UTC(year, monthNum - 1, 1));
     const endUTC = new Date(Date.UTC(year, monthNum, 0));
 
-    // 1. Fetch user defaults
     const user = await prisma.user.findUnique({
         where: { id: userId },
         select: { defaultLunchStatus: true, defaultDinnerStatus: true, defaultSahriStatus: true }
     });
     if (!user) return { error: 'User not found' };
 
-    // 2. Fetch all explicit meal records AND status logs for this month
     const [meals, statusLogs, initialStatusLog] = await Promise.all([
         prisma.mealStatus.findMany({
             where: {
@@ -238,15 +234,12 @@ export async function finalizeMonth(userId: string, year: number, monthNum: numb
         })
     ]);
 
-    // Index records by date key
     const mealMap = new Map<string, typeof meals[0]>();
     meals.forEach(m => mealMap.set(m.date.toISOString().split('T')[0], m));
 
-    // 3. Iterate every day in the month
     let totalMeals = 0;
     const daysInMonth = endUTC.getUTCDate();
 
-    // Determine status at the very start of the month
     let currentStatus = initialStatusLog?.status || 'Active';
     let logIdx = 0;
 
@@ -254,7 +247,6 @@ export async function finalizeMonth(userId: string, year: number, monthNum: numb
         const dateUTC = new Date(Date.UTC(year, monthNum - 1, day));
         const dateKey = dateUTC.toISOString().split('T')[0];
 
-        // Update currentStatus based on logs up to this day's END
         const dayEnd = new Date(dateUTC.getTime() + 24 * 60 * 60 * 1000 - 1);
         while (logIdx < statusLogs.length && statusLogs[logIdx].changedAt <= dayEnd) {
             currentStatus = statusLogs[logIdx].status;
@@ -276,7 +268,6 @@ export async function finalizeMonth(userId: string, year: number, monthNum: numb
     const totalCost = totalMeals * rate;
     const monthKey = `${year}-${String(monthNum).padStart(2, '0')}`;
 
-    // 4. Save Snapshot
     try {
         await prisma.monthlySnapshot.upsert({
             where: { userId_month: { userId, month: monthKey } },
@@ -299,50 +290,6 @@ export async function finalizeMonth(userId: string, year: number, monthNum: numb
 
     revalidatePath('/dashboard');
     return { success: `Month ${monthKey} finalized for user.`, count: totalMeals, cost: totalCost };
-}
-
-export async function syncUserStatus(userId: string, existingSettingsMap?: Map<string, string>) {
-    let settingsMap = existingSettingsMap;
-    if (!settingsMap) {
-        const settings = await prisma.systemSettings.findMany();
-        settingsMap = new Map(settings.map(s => [s.key, s.value]));
-    }
-
-    const threshold = parseFloat(settingsMap.get(SETTINGS_KEYS.AUTO_OFF_THRESHOLD) || '-300');
-
-    const summary = await getUserSummary(userId, settingsMap);
-    const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { status: true }
-    });
-
-    if (!user) return;
-
-    let newStatus: string | null = null;
-
-    if (summary.remainingBalance < threshold && user.status === 'Active') {
-        newStatus = 'Inactive';
-    } else if (summary.remainingBalance >= 0 && user.status === 'Inactive') {
-        newStatus = 'Active';
-    }
-
-    if (newStatus) {
-        await prisma.$transaction([
-            prisma.user.update({
-                where: { id: userId },
-                data: { status: newStatus }
-            }),
-            prisma.userStatusLog.create({
-                data: {
-                    userId: userId,
-                    status: newStatus
-                }
-            })
-        ]);
-        revalidateTag('users', 'default');
-        revalidatePath('/dashboard/admin/users');
-        revalidatePath('/dashboard/meals');
-    }
 }
 
 export async function autoComputePrevMonthRate(year: number, monthNum: number): Promise<{ success?: string; error?: string; rate?: number; totalExpenses?: number; totalMeals?: number; saved?: boolean }> {

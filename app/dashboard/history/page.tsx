@@ -6,7 +6,8 @@ import UserDropdown from '@/app/ui/user-dropdown';
 import Link from 'next/link';
 
 import { prisma } from '@/app/lib/prisma';
-import { getBatchUserSummaries, getSelfMonthlyHistory } from '@/app/lib/expense-actions';
+import { getBatchUserSummaries } from '@/app/services/expenses/summary';
+import { getSelfMonthlyHistory } from '@/app/services/expenses/stats';
 
 import Pagination from '@/app/ui/pagination';
 
