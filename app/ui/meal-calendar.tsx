@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect, useRef } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isBefore, isAfter, startOfDay, addMonths, subMonths, startOfWeek, endOfWeek, subDays } from 'date-fns';
 import { updateMealCount } from '@/app/actions/meals';
 import { RAMADAN_CONFIG } from '@/app/lib/constants';
@@ -19,6 +19,29 @@ export default function MealCalendar({ initialStatuses, targetUserId, adminOverr
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const router = useRouter();
 
+    const [localOverrides, setLocalOverrides] = useState<Record<string, number>>({});
+    const [updatingKeys, setUpdatingKeys] = useState<Set<string>>(new Set());
+    const debounceRefs = useRef<Record<string, NodeJS.Timeout>>({});
+    const [, startTransition] = useTransition();
+
+    useEffect(() => {
+        setLocalOverrides(prev => {
+            let changed = false;
+            const next = { ...prev };
+            for (const s of initialStatuses) {
+                const dateKey = new Date(s.date).toDateString();
+                for (const type of ['lunch', 'dinner', 'sahri'] as const) {
+                    const overrideKey = `${dateKey}-${type}`;
+                    if (overrideKey in next && next[overrideKey] === (s[type] || 0)) {
+                        delete next[overrideKey];
+                        changed = true;
+                    }
+                }
+            }
+            return changed ? next : prev;
+        });
+    }, [initialStatuses]);
+
     // Status Map for O(1) lookup
     const statusMap = new Map();
     initialStatuses.forEach(s => {
@@ -35,30 +58,48 @@ export default function MealCalendar({ initialStatuses, targetUserId, adminOverr
         end: endDate,
     });
 
-    const [pendingKey, setPendingKey] = useState<string | null>(null);
-    const [, startTransition] = useTransition();
-
     const handleUpdate = (date: Date, type: 'lunch' | 'dinner' | 'sahri', newCount: number) => {
-        const key = `${date.toDateString()}-${type}`;
-        setPendingKey(key);
+        const dateKey = date.toDateString();
+        const overrideKey = `${dateKey}-${type}`;
 
-        startTransition(async () => {
-            try {
-                // Send YYYY-MM-DD to avoid timezone shifts
-                const result = await updateMealCount(format(date, 'yyyy-MM-dd'), type, newCount, targetUserId);
+        // 1. Instantly reflect locally
+        setLocalOverrides(prev => ({ ...prev, [overrideKey]: newCount }));
 
-                if (result.error) {
-                    alert(result.error);
-                } else {
-                    router.refresh();
+        // 2. Clear existing debounce
+        if (debounceRefs.current[overrideKey]) {
+            clearTimeout(debounceRefs.current[overrideKey]);
+        }
+
+        // 3. Set new debounce for Server Action
+        debounceRefs.current[overrideKey] = setTimeout(() => {
+            setUpdatingKeys(prev => {
+                const next = new Set(prev);
+                next.add(overrideKey);
+                return next;
+            });
+
+            startTransition(async () => {
+                try {
+                    const result = await updateMealCount(format(date, 'yyyy-MM-dd'), type, newCount, targetUserId);
+                    if (result.error) {
+                        alert(result.error);
+                        setLocalOverrides(prev => { const n = { ...prev }; delete n[overrideKey]; return n; });
+                    } else {
+                        router.refresh();
+                    }
+                } catch (e) {
+                    console.error("Failed to update meal", e);
+                    alert("Failed to update meal status.");
+                    setLocalOverrides(prev => { const n = { ...prev }; delete n[overrideKey]; return n; });
+                } finally {
+                    setUpdatingKeys(prev => {
+                        const next = new Set(prev);
+                        next.delete(overrideKey);
+                        return next;
+                    });
                 }
-            } catch (e) {
-                console.error("Failed to update meal", e);
-                alert("Failed to update meal status.");
-            } finally {
-                setPendingKey(null);
-            }
-        });
+            });
+        }, 300);
     };
 
     // Navigation Bounds
@@ -161,6 +202,14 @@ export default function MealCalendar({ initialStatuses, targetUserId, adminOverr
                             }
 
                             const status = statusMap.get(dateKey) || fallback;
+                            const lunchOverride = localOverrides[`${dateKey}-lunch`];
+                            const dinnerOverride = localOverrides[`${dateKey}-dinner`];
+                            const sahriOverride = localOverrides[`${dateKey}-sahri`];
+
+                            const currentLunch = lunchOverride !== undefined ? lunchOverride : status.lunch;
+                            const currentDinner = dinnerOverride !== undefined ? dinnerOverride : status.dinner;
+                            const currentSahri = sahriOverride !== undefined ? sahriOverride : (status.sahri || 0);
+
                             const futureLimit = endOfMonth(addMonths(now, 2));
                             const isFutureLocked = isAfter(day, futureLimit);
 
@@ -172,18 +221,20 @@ export default function MealCalendar({ initialStatuses, targetUserId, adminOverr
                                 : (isPast || isFutureLocked);
 
                             const renderButton = (type: 'lunch' | 'dinner' | 'sahri', count: number) => {
+                                const overrideKey = `${dateKey}-${type}`;
+                                const isUpdating = updatingKeys.has(overrideKey);
+                                const buttonLocked = isLocked || isUpdating;
+
                                 const isLunch = type === 'lunch';
                                 const isSahri = type === 'sahri';
                                 let label = 'D'; // Dinner
                                 if (isLunch) label = 'L';
                                 if (isSahri) label = 'S';
                                 const isOn = count > 0;
-                                const buttonKey = `${dateKey}-${type}`;
-                                const isPending = pendingKey === buttonKey;
 
                                 // Main Click Logic
                                 const handleMainClick = () => {
-                                    if (isLocked || isPending) return;
+                                    if (buttonLocked) return;
                                     if (count > 1) {
                                         handleUpdate(day, type, count - 1);
                                     } else if (count === 1) {
@@ -196,7 +247,7 @@ export default function MealCalendar({ initialStatuses, targetUserId, adminOverr
                                 // Plus Click Logic
                                 const handlePlusClick = (e: React.MouseEvent) => {
                                     e.stopPropagation();
-                                    if (isLocked || isPending) return;
+                                    if (buttonLocked) return;
                                     handleUpdate(day, type, count + 1);
                                 };
 
@@ -204,32 +255,22 @@ export default function MealCalendar({ initialStatuses, targetUserId, adminOverr
                                     <div className="relative group">
                                         <button
                                             onClick={handleMainClick}
-                                            disabled={isLocked || isPending}
+                                            disabled={buttonLocked}
                                             className={clsx("w-full text-xs py-2 px-1 rounded font-medium transition-colors relative flex justify-center items-center min-h-[32px]", {
-                                                "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50": isOn && !isPending,
-                                                "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50": !isOn && !isPending,
-                                                "bg-gray-100 text-gray-400 cursor-wait dark:bg-zinc-800 dark:text-zinc-500": isPending,
-                                                "opacity-50 cursor-not-allowed": isLocked && !isPending
+                                                "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50": isOn,
+                                                "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50": !isOn,
+                                                "opacity-50 cursor-not-allowed": buttonLocked
                                             })}
                                         >
-                                            {isPending ? (
-                                                <svg className="animate-spin h-3 w-3 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                </svg>
-                                            ) : (
-                                                <>
-                                                    {label}: {isOn ? (
-                                                        count > 1 ? (
-                                                            <>ON <span className="font-extrabold text-indigo-600 dark:text-indigo-300 ml-0.5">({count})</span></>
-                                                        ) : 'ON'
-                                                    ) : 'OFF'}
-                                                </>
-                                            )}
+                                            {label}: {isOn ? (
+                                                count > 1 ? (
+                                                    <>ON <span className="font-extrabold text-indigo-600 dark:text-indigo-300 ml-0.5">({count})</span></>
+                                                ) : 'ON'
+                                            ) : 'OFF'}
                                         </button>
 
-                                        {/* Plus Icon - show only if ON and not locked nad not pending */}
-                                        {isOn && !isLocked && !isPending && (
+                                        {/* Plus Icon - show only if ON and not locked */}
+                                        {isOn && !buttonLocked && (
                                             <div
                                                 onClick={handlePlusClick}
                                                 className="absolute -top-1 -right-1 cursor-pointer hover:scale-110 transition-transform z-10 p-1"
@@ -251,8 +292,8 @@ export default function MealCalendar({ initialStatuses, targetUserId, adminOverr
                                     <div className="text-right text-xs text-gray-400">{format(day, 'd')}</div>
 
                                     <div className="flex flex-col gap-1.5 mt-1">
-                                        {renderButton('lunch', status.lunch)}
-                                        {renderButton('dinner', status.dinner)}
+                                        {renderButton('lunch', currentLunch)}
+                                        {renderButton('dinner', currentDinner)}
 
                                         {/* Sahri (Render Last) */}
                                         {(() => {
@@ -262,7 +303,7 @@ export default function MealCalendar({ initialStatuses, targetUserId, adminOverr
                                             const isActive = day >= s && day <= e;
 
                                             if (isActive) {
-                                                return renderButton('sahri', status.sahri || 0);
+                                                return renderButton('sahri', currentSahri);
                                             }
                                             return null;
                                         })()}

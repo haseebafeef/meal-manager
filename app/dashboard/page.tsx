@@ -42,7 +42,6 @@ export default async function Dashboard() {
     }
 
     // Parallel Data Fetching
-    console.time('dashboard-parallel-fetch');
     const [summary, userSummary, pendingRequestsCount, mealStats, users] = await Promise.all([
         getSystemSummary(),
         getUserSummary(currentUser.id),
@@ -58,7 +57,6 @@ export default async function Dashboard() {
             select: { id: true, name: true, email: true }
         })
     ]);
-    console.timeEnd('dashboard-parallel-fetch');
 
 
     return (
