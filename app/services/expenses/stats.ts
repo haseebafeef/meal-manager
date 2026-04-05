@@ -307,7 +307,7 @@ export async function getSelfMonthlyHistory(userId: string): Promise<{
     const [snapshots, allTransactions, allMeals, allStatusLogs, initialStatusLog, userData, settings] = await Promise.all([
         prisma.monthlySnapshot.findMany({
             where: { userId },
-            select: { month: true, totalMeals: true, totalCost: true, mealRate: true },
+            select: { month: true, totalMeals: true, totalCost: true, mealRate: true, prevBalance: true, totalCredit: true, closingBalance: true },
         }),
         prisma.transaction.findMany({
             where: { requesterId: userId, status: 'APPROVED', createdAt: { gte: APP_LAUNCH_UTC } },
@@ -348,22 +348,35 @@ export async function getSelfMonthlyHistory(userId: string): Promise<{
         const txStart = new Date(mealStart.getTime() - 6 * 60 * 60 * 1000);
         const txEnd = new Date(mealEnd.getTime() - 6 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000 - 1);
 
-        const totalCredit = allTransactions
-            .filter(tx => tx.createdAt >= txStart && tx.createdAt <= txEnd)
-            .reduce((sum, tx) => sum + tx.amount, 0);
-
         const snap = snapMap.get(monthKey);
         const finalized = !!snap;
 
-        let totalMeals: number;
-        let mealRate: number;
-        let totalCost: number;
+        let totalCredit = 0;
+        let totalMeals = 0;
+        let mealRate = 0;
+        let totalCost = 0;
+        
+        // These will be overridden during the running balance pass if not finalized
+        let snapPrevBalance: number | null = null;
+        let snapClosingBalance: number | null = null;
 
         if (snap) {
+            // IF it is snapshotted, use the explicit database truth!
+            // Note: snap might be lacking fields if Typescript isn't 100% updated, but JS will read them if they exist in DB.
             totalMeals = snap.totalMeals;
             mealRate = snap.mealRate;
             totalCost = snap.totalCost;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            totalCredit = (snap as any).totalCredit ?? 0;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            snapPrevBalance = (snap as any).prevBalance ?? 0;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            snapClosingBalance = (snap as any).closingBalance ?? 0;
         } else {
+            totalCredit = allTransactions
+                .filter(tx => tx.createdAt >= txStart && tx.createdAt <= txEnd)
+                .reduce((sum, tx) => sum + tx.amount, 0);
+
             const monthMeals = allMeals.filter(m => m.date >= mealStart && m.date <= mealEnd);
             const mealMap = new Map(monthMeals.map(m => [m.date.toISOString().split('T')[0], m]));
 
@@ -408,12 +421,22 @@ export async function getSelfMonthlyHistory(userId: string): Promise<{
             totalCost = parseFloat((totalMeals * mealRate).toFixed(2));
         }
 
-        return { monthKey, label, totalCredit, totalMeals, mealRate, totalCost, finalized };
+        return { monthKey, label, totalCredit, totalMeals, mealRate, totalCost, finalized, snapPrevBalance, snapClosingBalance };
     });
 
     const result = rows.map(row => {
-        const prevBalance = runningBalance;
-        const closingBalance = parseFloat((prevBalance + row.totalCredit - row.totalCost).toFixed(2));
+        let prevBalance = runningBalance;
+        let closingBalance = 0;
+
+        if (row.finalized && row.snapPrevBalance !== null && row.snapClosingBalance !== null) {
+            // Adopt the frozen DB truth, overriding any potential drift
+            prevBalance = row.snapPrevBalance;
+            closingBalance = row.snapClosingBalance;
+        } else {
+            // Unfinalized (Current or Prev month): Dynamically compute
+            closingBalance = parseFloat((prevBalance + row.totalCredit - row.totalCost).toFixed(2));
+        }
+        
         runningBalance = closingBalance;
         return { ...row, prevBalance, closingBalance };
     });

@@ -39,8 +39,9 @@ export async function getBatchUserSummaries() {
     const prevMonthKey = formatMonthKey(prevMonthStartUTC);
 
     const todayStartString = new Date(todayMidnightDhaka.getTime() - 6 * 60 * 60 * 1000).toISOString();
-    
+
     // We compute the raw data directly in postgres
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const resultsRaw: any[] = await prisma.$queryRaw`
         WITH settings AS (
             SELECT 
@@ -134,7 +135,7 @@ export async function getBatchUserSummaries() {
 
         if (!row.has_current_snapshot) {
             const defTotal = (row.defaultLunchStatus ? 1 : 0) + (row.defaultDinnerStatus ? 1 : 0) + (row.defaultSahriStatus ? 1 : 0);
-            
+
             const missingDays = Math.max(0, Number(row.active_days_count) - Number(row.past_db_count));
             const pastProj = missingDays * defTotal;
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
-import { addBatchExpenses } from '@/app/actions/expenses';
+import { addBatchExpenses } from '@/app/actions/expenses/add-batch-expenses';
 import { PlusIcon, TrashIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 // Removed useRouter as we might just want to reset form or rely on revalidate

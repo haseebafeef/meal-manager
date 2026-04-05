@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { getSystemSettings, updateSystemSetting } from '@/app/lib/settings-actions';
 import { SETTINGS_KEYS } from '@/app/lib/constants';
-import { autoComputePrevMonthRate } from '@/app/actions/expenses';
+import { autoComputePrevMonthRate } from '@/app/actions/expenses/auto-compute-rate';
 
 
 export default function SettingsContent() {
@@ -77,6 +77,7 @@ export default function SettingsContent() {
                             source={(settings[SETTINGS_KEYS.PREV_MEAL_RATE_SOURCE] || 'override') as 'auto' | 'override'}
                             onSaved={refreshSettings}
                         />
+                        <FinalizeMonthSettingRow prevRate={settings[SETTINGS_KEYS.PREV_MEAL_RATE] || '70'} />
                         <SettingRow
                             label="Auto Meal-Off Threshold"
                             description="Disable meals when balance hits this value (relative to 0)"
@@ -224,6 +225,7 @@ function PrevRateSettingRow({
     const [calcResult, setCalcResult] = useState<CalcResult | null>(null);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setValue(initialValue);
         setCurrentSource(source);
     }, [initialValue, source]);
@@ -252,11 +254,10 @@ function PrevRateSettingRow({
                 setCurrentSource('auto');
                 onSaved(); // refresh parent settings
             }
-        } catch (e) {
-            console.error('Auto-calculate failed', e);
-        } finally {
-            setIsCalculating(false);
+        } catch {
+            setCalcResult({ error: 'Failed to trigger calculation.' });
         }
+        setIsCalculating(false);
     };
 
     const handleAdminSave = () => {
@@ -344,7 +345,7 @@ function PrevRateSettingRow({
                         onClick={handleAutoCalculate}
                         disabled={isCalculating || isPending}
                         title={`Auto-calculate from ${monthLabel} data`}
-                        className="px-3 py-1.5 text-xs font-medium text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 rounded hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors disabled:opacity-50 whitespace-nowrap"
+                        className="px-3 py-1.5 w-full text-xs font-medium text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 rounded hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors disabled:opacity-50 whitespace-nowrap"
                     >
                         {isCalculating ? 'Calculating…' : `⚙ Auto (${monthLabel})`}
                     </button>
@@ -376,6 +377,69 @@ function PrevRateSettingRow({
                         </button>
                     )}
                 </div>
+            </td>
+        </tr>
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Separate row dedicated to triggering the finalization
+// ---------------------------------------------------------------------------
+function FinalizeMonthSettingRow({ prevRate }: { prevRate: string }) {
+    const [isFinalizing, setIsFinalizing] = useState(false);
+
+    const getPrevMonthParams = () => {
+        const now = new Date();
+        const dhaka = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+        let month = dhaka.getUTCMonth(); // 0-indexed
+        let year = dhaka.getUTCFullYear();
+        if (month === 0) { month = 12; year -= 1; }
+        return { year, monthNum: month };
+    };
+
+    const monthLabel = (() => {
+        const { year, monthNum } = getPrevMonthParams();
+        return new Date(year, monthNum - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+    })();
+
+    const handleFinalize = async () => {
+        if (!confirm(`Are you absolutely sure you want to finalize and lock the ledger for ${monthLabel}? This will calculate closing balances for all users based on the currently saved Prev Month Rate (৳ ${prevRate}).`)) return;
+        setIsFinalizing(true);
+        try {
+            const { year, monthNum } = getPrevMonthParams();
+            const { finalizeSystemMonth } = await import('@/app/actions/expenses/finalize-system-month');
+            const result = await finalizeSystemMonth(year, monthNum, parseFloat(prevRate));
+            if (result.success) {
+                alert(result.success);
+            } else if (result.error) {
+                alert(result.error);
+            }
+        } catch {
+            alert('Failed to finalize month.');
+        }
+        setIsFinalizing(false);
+    };
+
+    return (
+        <tr className="bg-amber-50/30 dark:bg-amber-900/10">
+            <td className="px-4 py-4 font-medium align-top text-amber-900 dark:text-amber-200">
+                Lock Ledger History
+                <p className="text-xs text-amber-700 dark:text-amber-400 font-normal mt-0.5">
+                    Locks the previous month&apos;s balances for {monthLabel}
+                </p>
+            </td>
+            <td className="px-4 py-4 align-top text-amber-800 dark:text-amber-300 font-medium">
+                Uses Rate: ৳ {prevRate}
+            </td>
+            <td className="px-4 py-4 text-right align-top">
+                <button
+                    onClick={handleFinalize}
+                    disabled={isFinalizing}
+                    title={`Permanently lock history for ${monthLabel}`}
+                    className="px-4 py-2 text-xs font-semibold text-white border border-amber-600 bg-amber-600 rounded shadow-sm hover:bg-amber-700 transition-colors disabled:opacity-50 whitespace-nowrap"
+                >
+                    {isFinalizing ? 'Finalizing...' : '🔒 Finalize & Lock Month'}
+                </button>
             </td>
         </tr>
     );

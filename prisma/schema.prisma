@@ -177,5 +177,9 @@ model MonthlySnapshot {
   totalCost Float
   createdAt DateTime @default(now())
 
+  prevBalance    Float @default(0)
+  totalCredit    Float @default(0)
+  closingBalance Float @default(0)
+
   @@unique([userId, month])
 }

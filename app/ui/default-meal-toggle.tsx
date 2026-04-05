@@ -3,7 +3,7 @@
 import { Switch } from '@headlessui/react';
 import { useTransition, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { updateDefaultMealPreference } from '@/app/actions/meals';
+import { updateDefaultMealPreference } from '@/app/actions/meals/update-default-preference';
 import { RAMADAN_CONFIG } from '@/app/lib/constants';
 
 import clsx from 'clsx';

@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState, useState, useEffect } from 'react';
-import { addBatchExpenses } from '@/app/actions/expenses';
+import { addBatchExpenses } from '@/app/actions/expenses/add-batch-expenses';
 import { Button } from './button';
 import {
     TrashIcon,

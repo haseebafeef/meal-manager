@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { getBatchUserSummaries } from '@/app/services/expenses/summary';
 import { prisma } from '@/app/lib/prisma';

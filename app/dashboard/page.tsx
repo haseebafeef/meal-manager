@@ -10,6 +10,7 @@ import ExpenseList from '@/app/ui/expense-list';
 import { getSystemSummary } from '@/app/services/expenses/systemSummary';
 import { getUserSummary } from '@/app/services/expenses/userSummary';
 import { getDailyMealStats } from '@/app/services/meals/getDailyMealStats';
+import { isSahriActive } from '@/app/lib/meals/utils';
 
 import { prisma } from '@/app/lib/prisma';
 import { ThemeToggle } from '@/app/ui/theme-toggle';
@@ -132,7 +133,7 @@ export default async function Dashboard() {
                             </p>
                         </div>
                         {/* Sahri (Conditional or Always?) - Let's show if count > 0 OR if in range. For simplicity, showing if structure exists (it always does now) */}
-                        {(mealStats.sahri && (
+                        {(mealStats.sahri && isSahriActive(new Date()) && (
                             <div className="p-2 md:p-4 rounded-lg bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/20 md:col-span-2 lg:col-span-1">
                                 <div className="flex justify-between items-center mb-0.5 md:mb-2">
                                     <h3 className="text-xs md:text-base font-semibold text-purple-800 dark:text-purple-400">Sahri</h3>

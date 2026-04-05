@@ -9,6 +9,7 @@ import bcrypt from 'bcryptjs';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
     ...authConfig,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     adapter: PrismaAdapter(prisma) as any,
     session: { strategy: 'jwt' },
     callbacks: {
@@ -65,6 +66,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                             return null;
                         }
                         console.log('Authorize: Success', user.id);
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         return user as any;
                     }
                     console.log('Authorize: Password mismatch');

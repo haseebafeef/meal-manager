@@ -5,8 +5,6 @@ import { ActionResult } from './types';
  * Standardized error handling for server actions
  */
 export function handleActionError(error: unknown, context: string): ActionResult {
-  const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-  
   logger.error(`[${context}]`, error);
   
   return { 
