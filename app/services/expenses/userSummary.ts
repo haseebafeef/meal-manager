@@ -1,6 +1,6 @@
 import { prisma } from '@/app/lib/prisma';
 import { getStartOfMonthDhaka, getNowDhaka } from '@/app/lib/utils';
-import { parseTimeToMinutes, formatMonthKey } from '@/app/lib/expenses/utils';
+import { parseTimeToMinutes } from '@/app/lib/expenses/utils';
 import { getSystemSettings } from '@/app/lib/settings-actions';
 import { SETTINGS_KEYS, DEFAULT_SETTINGS, RAMADAN_CONFIG } from '@/app/lib/constants';
 
@@ -72,7 +72,13 @@ export async function getUserSummary(userId: string, existingSettingsMap?: Map<s
         })
     ]);
 
-    const mealMap = new Map(monthMeals.map(m => [m.date.toISOString().split('T')[0], m]));
+    const mealMap = new Map(monthMeals.map(m => {
+        const dTime = new Date(m.date.getTime() + 6 * 60 * 60 * 1000);
+        return [
+            `${dTime.getUTCFullYear()}-${String(dTime.getUTCMonth() + 1).padStart(2, '0')}-${String(dTime.getUTCDate()).padStart(2, '0')}`,
+            m
+        ];
+    }));
     const userLogs = user?.statusLogs || [];
     const initialStatus = initialStatusLog?.status || 'Active';
 
@@ -89,7 +95,7 @@ export async function getUserSummary(userId: string, existingSettingsMap?: Map<s
 
     for (let day = 1; day <= daysPassed; day++) {
         const dateUTC = new Date(Date.UTC(nowDhaka.getFullYear(), nowDhaka.getMonth(), day));
-        const dateKey = dateUTC.toISOString().split('T')[0];
+        const dateKey = `${dateUTC.getUTCFullYear()}-${String(dateUTC.getUTCMonth() + 1).padStart(2, '0')}-${String(dateUTC.getUTCDate()).padStart(2, '0')}`;
         const dayEnd = new Date(dateUTC.getTime() + 24 * 60 * 60 * 1000 - 1);
 
         while (logIdx < userLogs.length && userLogs[logIdx].changedAt <= dayEnd) {
@@ -143,7 +149,8 @@ export async function getUserSummary(userId: string, existingSettingsMap?: Map<s
     });
 
     for (const g of gapGroups) {
-        const key = formatMonthKey(g.date);
+        const dTime = new Date(g.date.getTime() + 6 * 60 * 60 * 1000);
+        const key = `${dTime.getUTCFullYear()}-${String(dTime.getUTCMonth() + 1).padStart(2, '0')}`;
         if (!snapshotMap.has(key)) {
             const count = (g._sum.lunch || 0) + (g._sum.dinner || 0) + (g._sum.sahri || 0);
             const cost = count * prevRate;

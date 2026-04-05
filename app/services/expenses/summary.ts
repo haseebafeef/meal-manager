@@ -35,8 +35,8 @@ export async function getBatchUserSummaries() {
 
     const isSahriToday = RAMADAN_CONFIG ? (todayMidnightDhaka >= new Date(RAMADAN_CONFIG.START) && todayMidnightDhaka <= new Date(RAMADAN_CONFIG.END)) : false;
 
-    const currentMonthKey = formatMonthKey(currentMonthStartUTC);
-    const prevMonthKey = formatMonthKey(prevMonthStartUTC);
+    const currentMonthKey = formatMonthKey(currentMonthStartDhaka);
+    const prevMonthKey = formatMonthKey(prevMonthStartDhaka);
 
     const todayStartString = new Date(todayMidnightDhaka.getTime() - 6 * 60 * 60 * 1000).toISOString();
 
